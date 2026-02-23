@@ -17,15 +17,20 @@ export default class Node {
 
   constructor(public readonly serverPort: number, dhtPort: number, private readonly crypto: Crypto, private readonly metadataManager: MetadataManager, private readonly db: Repositories) {
     startServer(crypto, serverPort, peer => this.addPeer(peer))
-    discoverPeers(serverPort, dhtPort, peer => this.addPeer(peer), this.crypto)
+    discoverPeers(serverPort, dhtPort, peer => this.addPeer(peer), this.crypto, this)
     // WebSocketClient.init(crypto, 'ws://61.69.230.245:4544', 'ws://61.69.230.245:4545')
   }
 
   public addPeer(socket: WebSocketClient | WebSocketServerConnection) {
-    if (socket.address in this.peers) return console.warn('WARN:', 'Already connected/connecting to peer')
+    if (socket.address in this.peers) {
+      socket.close()
+      return console.warn('WARN:', 'Already connected/connecting to peer')
+    }
     this.peers[socket.address] = new Peer(socket, peer => this.addPeer(peer), this.crypto, () => { delete this.peers[socket.address] }, this, this.db, this.metadataManager.installedPlugins)
     this.announcePeer(socket)
   }
+
+  public readonly hasPeer = (address: `0x${string}`) => address in this.peers
 
   private announcePeer(peer: WebSocketClient | WebSocketServerConnection) {
     for (const address in this.peers) this.peers[address as `0x${string}`]!.announcePeer({ hostname: peer.hostname })

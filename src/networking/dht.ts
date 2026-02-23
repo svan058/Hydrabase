@@ -4,6 +4,7 @@ import { portForward } from './upnp'
 import WebSocketClient from './ws/client';
 import type { Crypto } from '../Crypto';
 import { CONFIG } from '../config';
+import type Node from '../Node';
 
 const knownPeers = new Set<`${string}:${number}`>();
 
@@ -15,7 +16,7 @@ const announce = (dht: DHT, port: number) => {
   dht.lookup(room, err => { if (err) console.error('ERROR:', 'DHT threw an error during lookup', err) })
 }
 
-export const discoverPeers = (serverPort: number, dhtPort: number, addPeer: (peer: WebSocketClient) => void, crypto: Crypto) => {
+export const discoverPeers = (serverPort: number, dhtPort: number, addPeer: (peer: WebSocketClient) => void, crypto: Crypto, node: Node) => {
   portForward(dhtPort, 'Hydrabase (UDP)', 'UDP');
   const dht = new DHT({
     krpc: krpc(),
@@ -38,7 +39,7 @@ export const discoverPeers = (serverPort: number, dhtPort: number, addPeer: (pee
     if (knownPeers.has(`${peer.host}:${peer.port}`) || CONFIG.blacklistedIPs.includes(peer.host)) return
     if (`ws://${peer.host}:${peer.port}` === `ws://${CONFIG.serverHostname}:${serverPort}`) return
     console.log('LOG:', `Discovered peer dht://${peer.host}:${peer.port}`)
-    const client = await WebSocketClient.init(crypto, `ws://${peer.host}:${peer.port}`, `ws://${CONFIG.serverHostname}:${serverPort}`)
+    const client = await WebSocketClient.init(crypto, `ws://${peer.host}:${peer.port}`, `ws://${CONFIG.serverHostname}:${serverPort}`, node)
     if (client === false) return
     addPeer(client)
     knownPeers.add(`${peer.host}:${peer.port}`)
@@ -48,7 +49,7 @@ export const discoverPeers = (serverPort: number, dhtPort: number, addPeer: (pee
     if (knownPeers.has(`${peer.host}:${peer.port}`) || CONFIG.blacklistedIPs.includes(peer.host)) return
     if (`ws://${peer.host}:${peer.port}` === `ws://${CONFIG.serverHostname}:${serverPort}`) return
     console.log('LOG:', `Received announce from dht://${peer.host}:${peer.port}`)
-    const client = await WebSocketClient.init(crypto, `ws://${peer.host}:${peer.port}`, `ws://${CONFIG.serverHostname}:${serverPort}`)
+    const client = await WebSocketClient.init(crypto, `ws://${peer.host}:${peer.port}`, `ws://${CONFIG.serverHostname}:${serverPort}`, node)
     if (client === false) return
     addPeer(client)
     knownPeers.add(`${peer.host}:${peer.port}`)
