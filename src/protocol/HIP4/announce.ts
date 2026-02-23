@@ -13,7 +13,7 @@ export class HIP4_Conn_Announce {
   sendAnnounce(announce: Announce): void {
     if (this.peer.hostname === announce.hostname) return
     if (!this.peer.isOpened) return
-    this.peer.socket.send(JSON.stringify(announce))
+    this.peer.socket.send(JSON.stringify({ announce }))
   }
 
   async handleAnnounce(announce: Announce): Promise<void> {
