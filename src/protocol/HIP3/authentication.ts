@@ -40,11 +40,16 @@ const verify = {
   server: {
     address: async (headers: { [k: string]: string }, listenPort: number): Promise<`0x${string}` | Response> => {
       const {
-        'x-api-key': apiKey,
+        'x-api-key': _apiKey,
         'x-signature': _signature,
-        'x-address': address
+        'x-address': address,
+        'sec-websocket-protocol': protocol
       } = headers
       const signature = _signature ? Signature.fromString(_signature) : undefined
+
+      const keyProto = protocol?.split(',').map(s => s.trim()).find(s => s.startsWith('x-api-key-'))
+      const apiKey= _apiKey ?? keyProto?.replace('x-api-key-', '')
+
       const auth = apiKey !== undefined || signature !== undefined ? { apiKey, signature } as Auth : undefined
 
       if (!auth) return new Response('Missing authentication', { status: 400 })

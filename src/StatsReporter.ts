@@ -39,7 +39,7 @@ export class StatsReporter {
     private readonly getPeers: () => Record<`0x${string}`, Peer>,
     private readonly db: DB,
     private readonly dht: { getNodes: () => DHTNode[] },
-    private readonly intervalMs = 60_000
+    private readonly intervalMs = 10_000
   ) {
     this.report()
     setInterval(() => this.report(), this.intervalMs)
