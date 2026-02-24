@@ -54,9 +54,10 @@ const verify = {
         if (!auth.signature.verify(`I am connecting to ws://${CONFIG.serverHostname}:${listenPort}`, address)) return new Response('Authentication failed', { status: 403 })
       }
 
-      return address as `0x${string}`
+      return address as `0x${string}` ?? '0x0'
     },
     hostname: async (headers: { [k: string]: string }, address: `0x${string}`): Promise<Response | `ws://${string}`> => {
+      if (address === '0x0') return 'ws://'
       const hostname = headers['x-hostname']
       if (!hostname) return new Response('Missing hostname header', { status: 400 })
       const data = await (await fetch(hostname.replace('ws://', 'http://') + '/auth')).text()

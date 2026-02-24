@@ -12,7 +12,7 @@ export const CONFIG = {
   upnpTTL: 3600, // Seconds
   upnpReannounce: 1800, // Seconds
   pluginConfidence: 'x / (x + y)',
-  finalConfidence: 'x * y',
+  finalConfidence: 'avg(x, y, z)',
   listenAddress: '0.0.0.0', // Listen address
   serverHostname: ip,
   blacklistedIPs: [],

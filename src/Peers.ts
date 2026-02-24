@@ -2,7 +2,7 @@ import { Parser } from 'expr-eval'
 import { Peer } from "./networking/ws/peer";
 import { CONFIG } from './config'
 import { Crypto } from './Crypto'
-import type { Repositories } from './db'
+import type { DB, Repositories } from './db'
 import type MetadataManager from './Metadata'
 import type { SearchResult } from './Metadata'
 import WebSocketClient from "./networking/ws/client";
@@ -11,12 +11,17 @@ import { discoverPeers } from './networking/dht'
 import type { Request } from './RequestManager';
 import type Node from './Node';
 
+
+const parser = new Parser()
+
+parser.functions.avg = (...args: number[]) => args.reduce((sum, x) => sum + x, 0) / args.length
+
 const avg = (numbers: number[]) => numbers.reduce((accumulator, currentValue) => accumulator + currentValue, 0) / numbers.length
 
 export default class Peers {
   private readonly peers: { [address: `0x${string}`]: Peer } = {}
 
-  constructor(private readonly node: Node, public readonly serverPort: number, dhtPort: number, private readonly crypto: Crypto, private readonly metadataManager: MetadataManager, private readonly db: Repositories) {
+  constructor(private readonly node: Node, public readonly serverPort: number, dhtPort: number, private readonly crypto: Crypto, private readonly metadataManager: MetadataManager, private readonly repos: Repositories, private readonly db: DB) {
     startServer(crypto, serverPort, peer => this.add(peer))
     discoverPeers(serverPort, dhtPort, peer => this.add(peer), this.crypto, this)
     WebSocketClient.init(crypto, 'ws://61.69.230.245:4544', 'ws://61.69.230.245:4545', this).then(socket => {
@@ -29,7 +34,7 @@ export default class Peers {
       socket.close()
       return console.warn('WARN:', 'Already connected/connecting to peer')
     }
-    const peer = new Peer(this.node, socket, peer => this.add(peer), this.crypto, () => { delete this.peers[socket.address] }, this, this.db, this.metadataManager.installedPlugins)
+    const peer = new Peer(this.node, socket, peer => this.add(peer), this.crypto, () => { delete this.peers[socket.address] }, this, this.repos, this.db, this.metadataManager.installedPlugins)
     this.peers[socket.address] = peer
     this.announce(peer)
   }
@@ -70,13 +75,12 @@ export default class Peers {
         Object.entries(pluginMatches)
           .filter(([pluginId]) => installedPlugins.has(pluginId))
           .map(([, { match, mismatch }]) => Parser.evaluate(CONFIG.pluginConfidence, { x: match, y: mismatch }))
-      )
+      ) // 0-1
 
       for (const result of peerResults) {
         const hash = BigInt(Bun.hash(JSON.stringify(result)))
         const peerClaimedConfidence = result.confidence
-        const finalConfidence = Parser.evaluate(CONFIG.finalConfidence, { x: peerConfidence, y: peerClaimedConfidence })
-        // TODO: take into account historic accuracy
+        const finalConfidence = parser.evaluate(CONFIG.finalConfidence, { x: peerConfidence, y: peerClaimedConfidence, z: peer.historicConfidence })
         results.set(hash, { ...result as Exclude<SearchResult[T], 'confidence'>, confidences: [...results.get(hash)?.confidences ?? [], finalConfidence] })
       }
     }

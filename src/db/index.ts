@@ -15,12 +15,15 @@ export interface Repositories {
   artist: ArtistRepository
 }
 
-export const startDatabase = (): Repositories => {
+export const startDatabase = (): { db: DB, repos: Repositories } => {
   const db = drizzle(sqlite, { schema })
   migrate(db, { migrationsFolder: "./drizzle" });
   return {
-    track: new TrackRepository(db),
-    album: new AlbumRepository(db),
-    artist: new ArtistRepository(db)
+    db,
+    repos: {
+      track: new TrackRepository(db),
+      album: new AlbumRepository(db),
+      artist: new ArtistRepository(db)
+    }
   }
 }
