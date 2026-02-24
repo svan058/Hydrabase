@@ -2,18 +2,20 @@ import { sql } from 'drizzle-orm'
 import type { DB } from './db'
 import type { MetadataPlugin } from './Metadata'
 import type { Peer } from './networking/ws/peer'
+import type { DHTNode } from 'bittorrent-dht'
 
 export interface NodeStats {
   timestamp: string
   address: `0x${string}`
-  plugins: string[]
+  installedPlugins: string[]
+  knownPlugins: string[]
   connectedPeers: number
-  peers: Array<{
+  peers: {
     address: `0x${string}`
     hostname: string | undefined
     historicConfidence: number
-  }>
-  dhtNodes: string
+  }[]
+  dhtNodes: string[]
   cache: {
     tracks: number
     artists: number
@@ -30,17 +32,16 @@ const COUNT_CACHE_SQL = (table: 'tracks' | 'artists' | 'albums') => sql.raw(`SEL
 const COUNT_PEER_SQL = (table: 'tracks' | 'artists' | 'albums') => sql.raw(`SELECT COUNT(*) AS n FROM ${table} WHERE address != '0x0'`)
 
 export class StatsReporter {
-  private timer: ReturnType<typeof setInterval>
-
   constructor(
     private readonly address: `0x${string}`,
     private readonly plugins: MetadataPlugin[],
     private readonly getPeers: () => Record<`0x${string}`, Peer>,
     private readonly db: DB,
+    private readonly dht: { getNodes: () => DHTNode[] },
     private readonly intervalMs = 60_000
   ) {
     this.report()
-    this.timer = setInterval(() => this.report(), this.intervalMs)
+    setInterval(() => this.report(), this.intervalMs)
     console.log('LOG:', `Reporting stats every ${this.intervalMs / 1000}s`)
   }
 
@@ -52,7 +53,8 @@ export class StatsReporter {
     return {
       timestamp: new Date().toISOString(),
       address: this.address,
-      plugins: this.plugins.map(p => p.id),
+      installedPlugins: this.plugins.map(p => p.id),
+      knownPlugins: this.knownPlugins(),
       connectedPeers: Object.keys(peers).filter(a => a !== '0x0').length,
       peers: Object.entries(peers)
         .filter(([address]) => address !== '0x0')
@@ -62,7 +64,7 @@ export class StatsReporter {
         artists: countRow(COUNT_CACHE_SQL('artists')),
         albums:  countRow(COUNT_CACHE_SQL('albums')),
       },
-
+      dhtNodes: this.dht.getNodes().map(({host,port}) => `${host}:${port}`),
       peerData: {
         tracks:  countRow(COUNT_PEER_SQL('tracks')),
         artists: countRow(COUNT_PEER_SQL('artists')),
@@ -80,5 +82,16 @@ export class StatsReporter {
     } catch (err) {
       console.error('ERROR:', 'StatsReporter failed to collect/send stats', err as any)
     }
+  }
+
+  private knownPlugins(): string[] {
+    const rows = this.db.all<{ plugin_id: string }>(sql.raw(`
+      SELECT DISTINCT plugin_id FROM tracks
+      UNION
+      SELECT DISTINCT plugin_id FROM artists
+      UNION
+      SELECT DISTINCT plugin_id FROM albums
+    `))
+    return rows.map(r => r.plugin_id)
   }
 }

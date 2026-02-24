@@ -94,6 +94,7 @@ export default class MetadataManager implements MetadataPlugin {
   }
 
   public async handleRequest<T extends Request['type']>(request: Request & { type: T }) {
+    console.log('LOG:', `[META] Searching for ${request.type}: ${request.query}`)
     if (request.type === 'track') return await this.searchTrack(request.query)
     if (request.type === 'artist') return await this.searchArtist(request.query)
     if (request.type === 'album') return await this.searchAlbum(request.query)

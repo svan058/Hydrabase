@@ -16,19 +16,19 @@ export default class WebSocketClient {
 
   private constructor(crypto: Crypto, public readonly address: `0x${string}`, public readonly hostname: `ws://${string}`, selfHostname: `ws://${string}`) {
     const headers = HIP3_CONN_Authentication.proveClientAddress(crypto, hostname, selfHostname)
-    console.log('LOG:', `Connecting to peer ${hostname}`)
+    console.log('LOG:', `[CLIENT] Connecting to peer ${hostname}`)
     this.socket = new WebSocket(hostname, { headers })
     this.socket.addEventListener('open', () => {
-      console.log('LOG:', `Connected to peer ${hostname} ${address}`)
+      console.log('LOG:', `[CLIENT] Connected to peer ${hostname} ${address}`)
       this._isOpened = true
     })
     this.socket.addEventListener('close', ev => {
-      console.log('LOG:', `Connection closed with peer ${address}`, `- ${ev.reason}`)
+      console.log('LOG:', `[CLIENT] Connection closed with peer ${address}`, `- ${ev.reason}`)
       this._isOpened = false
       this.closeHandler?.()
     })
     this.socket.addEventListener('error', err => {
-      console.warn('WARN:', `Connection failed with ${address}`, err)
+      console.warn('WARN:', `[CLIENT] Connection failed with ${address}`, err)
       this._isOpened = false
       this.closeHandler?.()
     })
@@ -39,11 +39,11 @@ export default class WebSocketClient {
     const address = await HIP3_CONN_Authentication.verifyClientAddress(hostname)
     if (!address) return false
     if (peers.has(address)) {
-      console.warn('WARN:', 'Already connected/connecting to peer')
+      console.warn('WARN:', '[CLIENT] Already connected/connecting to peer')
       return false
     }
     if (address === crypto.address) {
-      console.warn('WARN:', `Not connecting to self`)
+      console.warn('WARN:', `[CLIENT] Not connecting to self`)
       return false
     }
     return new WebSocketClient(crypto, address, hostname, selfHostname)

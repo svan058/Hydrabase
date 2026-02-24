@@ -22,11 +22,11 @@ export const discoverPeers = (serverPort: number, dhtPort: number, addPeer: (pee
     krpc: krpc(),
     bootstrap: ['router.bittorrent.com:6881', 'router.utorrent.com:6881', 'dht.transmissionbt.com:6881']
   })
-  dht.listen(dhtPort, '0.0.0.0', () => console.log('LOG:', `DHT listening on port ${dhtPort}`))
-  dht.on('error', err => console.error('ERROR:', 'DHT the an error', err))
-  // dht.on('warning', warning => console.warn('WARN:', 'DHT threw a warning', warning))
+  dht.listen(dhtPort, '0.0.0.0', () => console.log('LOG:', `[DHT] Listening on port ${dhtPort}`))
+  dht.on('error', err => console.error('ERROR:', '[DHT] An error occurred', err))
+  // dht.on('warning', warning => console.warn('WARN:', '[DHT] A warning was thrown', warning))
   dht.on('ready', () => {
-    console.log('LOG:', 'DHT ready', `- ${dht.toJSON().nodes.length} Nodes`)
+    console.log('LOG:', '[DHT] Ready', `- ${dht.toJSON().nodes.length} Nodes`)
 
     announce(dht, serverPort)
     setInterval(() => announce(dht, serverPort), CONFIG.dhtReannounce)
@@ -34,12 +34,20 @@ export const discoverPeers = (serverPort: number, dhtPort: number, addPeer: (pee
     dht.addNode({ host: 'ddns.yazdani.au', port: 45454 })
     dht.addNode({ host: 'ddns.yazdani.au', port: 45455 })
   })
-  // dht.on('node', node => console.log('LOG:', `Discovered DHT node ${node.host}:${node.port}`))
+  let lastNodes = 0
+  dht.on('node', () => {
+    const nodes = dht.toJSON().nodes.length
+    if (nodes % 10 === 0 && nodes !== lastNodes) {
+      console.log('LOG:', `[DHT] Connected to ${nodes} nodes`)
+      lastNodes = nodes
+    }
+    // console.log('LOG:', `[DHT] Discovered node ${node.host}:${node.port}`)
+  })
   dht.on('peer', async peer => {
     if (`ws://${peer.host}:${peer.port}` === `ws://${CONFIG.serverHostname}:${serverPort}`) return
     if (knownPeers.has(`${peer.host}:${peer.port}`) || CONFIG.blacklistedIPs.includes(peer.host)) return
     knownPeers.add(`${peer.host}:${peer.port}`)
-    console.log('LOG:', `Discovered peer ws://${peer.host}:${peer.port}`)
+    console.log('LOG:', `[DHT] Discovered peer ws://${peer.host}:${peer.port}`)
     const client = await WebSocketClient.init(crypto, `ws://${peer.host}:${peer.port}`, `ws://${CONFIG.serverHostname}:${serverPort}`, peers)
     if (client === false) return
     addPeer(client)
@@ -48,10 +56,14 @@ export const discoverPeers = (serverPort: number, dhtPort: number, addPeer: (pee
     if (_infoHash.toString('hex') !== getRoomId()) return
     if (knownPeers.has(`${peer.host}:${peer.port}`) || CONFIG.blacklistedIPs.includes(peer.host)) return
     if (`ws://${peer.host}:${peer.port}` === `ws://${CONFIG.serverHostname}:${serverPort}`) return
-    console.log('LOG:', `Received announce from dht://${peer.host}:${peer.port}`)
+    console.log('LOG:', `[DHT] Received announce from ws://${peer.host}:${peer.port}`)
     const client = await WebSocketClient.init(crypto, `ws://${peer.host}:${peer.port}`, `ws://${CONFIG.serverHostname}:${serverPort}`, peers)
     if (client === false) return
     addPeer(client)
     knownPeers.add(`${peer.host}:${peer.port}`)
   })
+
+  return {
+    getNodes: () => dht.toJSON().nodes
+  }
 }

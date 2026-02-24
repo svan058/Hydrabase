@@ -12,7 +12,6 @@ export default class Node {
     this.peers = new Peers(this, serverPort, dhtPort, crypto, metadataManager, repos, db)
   }
   public async search<T extends Request['type']>(type: T, query: string, searchPeers = true) {
-    console.log('LOG:', 'Searching locally')
     const results = await this.metadataManager.handleRequest({ type, query }) as SearchResult[T][]
     const hashes = new Set<bigint>()
     const plugins = new Set<string>()
@@ -25,7 +24,7 @@ export default class Node {
 
     if (!searchPeers) return results
 
-    console.log('LOG:', 'Searching peers')
+    console.log('LOG:', '[NODE] Searching peers')
     const peerResults = await this.peers.requestAll({ type, query }, hashes, plugins)
 
     // Inject local results

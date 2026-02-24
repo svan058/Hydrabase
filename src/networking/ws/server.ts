@@ -78,5 +78,5 @@ export const startServer = (crypto: Crypto, port: number, addPeer: (conn: WebSoc
       }
     }
   })
-  console.log('LOG:', `Peer listening on port ${server.port}`)
+  console.log('LOG:', `[SERVER] Listening on port ${server.port}`)
 }

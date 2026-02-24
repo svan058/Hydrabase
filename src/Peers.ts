@@ -24,15 +24,14 @@ export default class Peers {
 
   constructor(private readonly node: Node, public readonly serverPort: number, dhtPort: number, private readonly crypto: Crypto, private readonly metadataManager: MetadataManager, private readonly repos: Repositories, private readonly db: DB) {
     startServer(crypto, serverPort, peer => this.add(peer))
-    discoverPeers(serverPort, dhtPort, peer => this.add(peer), crypto, this)
-    new StatsReporter(crypto.address, metadataManager.installedPlugins, () => this.peers, db)
-
+    const dht = discoverPeers(serverPort, dhtPort, peer => this.add(peer), crypto, this)
+    new StatsReporter(crypto.address, metadataManager.installedPlugins, () => this.peers, db, dht)
   }
 
   public add(socket: WebSocketClient | WebSocketServerConnection) {
     if (socket.address in this.peers) {
       socket.close()
-      return console.warn('WARN:', 'Already connected/connecting to peer')
+      return console.warn('WARN:', '[PEERS] Already connected/connecting to peer')
     }
     const peer = new Peer(this.node, socket, peer => this.add(peer), this.crypto, () => { delete this.peers[socket.address] }, this, this.repos, this.db, this.metadataManager.installedPlugins)
     this.peers[socket.address] = peer
@@ -47,7 +46,7 @@ export default class Peers {
 
   public async requestAll<T extends Request['type']>(request: Request & { type: T }, confirmedHashes: Set<bigint>, installedPlugins: Set<string>) {
     const results = new Map<bigint, Exclude<SearchResult[T], 'confidence'> & { confidences: number[] }>()
-    console.log('LOG:', `Sending request to ${Object.keys(this.peers).length} peers`)
+    console.log('LOG:', `[PEERS] Searching ${Object.keys(this.peers).length} peers for ${request.type}: ${request.query}`)
     for (const _address in this.peers) {
       try {
         const address = _address as `0x${string}`
@@ -55,14 +54,14 @@ export default class Peers {
         const peer = this.peers[address]!
 
         if (!peer.isOpened) {
-          console.warn('WARN:', `Skipping peer ${address}: connection not open`)
+          console.warn('WARN:', `[PEERS] Skipping peer ${address}: connection not open`)
           delete this.peers[address]
           continue
         }
 
-        console.log('LOG:', `Sending request to peer ${address}`)
+        console.log('LOG:', `[PEERS] Sending request to peer ${address}`)
         const peerResults = await peer.search(request.type, request.query)
-        console.log('LOG:', `Received ${peerResults.length} results from ${address}`)
+        console.log('LOG:', `[PEERS] Received ${peerResults.length} results from ${address}`)
 
         // Compare Results
         const pluginMatches: { [pluginId: string]: { match: number, mismatch: number } } = {}
