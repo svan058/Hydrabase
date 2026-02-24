@@ -3,10 +3,11 @@ import { HIP4_Conn_Announce, type Announce } from "../../protocol/HIP4/announce"
 import { Crypto } from "../../Crypto";
 import WebSocketClient from "./client";
 import type { WebSocketServerConnection } from "./server";
-import type Node from "../../Node";
 import type { Repositories } from "../../db";
 import type { MetadataPlugin } from "../../Metadata";
 import { HIP2_Conn_Message } from "../../protocol/HIP2/message";
+import type Peers from "../../Peers";
+import type Node from "../../Node";
 
 export class Peer {
   // private readonly HIP1_Conn_Capabilities: HIP1_Conn_Capabilities
@@ -14,12 +15,12 @@ export class Peer {
   private readonly HIP4_Conn_Announce: HIP4_Conn_Announce
   // public readonly ready: Promise<void>
 
-  constructor(private readonly socket: WebSocketClient | WebSocketServerConnection, addPeer: (peer: WebSocketClient) => void, crypto: Crypto, onClose: () => void, private readonly node: Node, private readonly db: Repositories, public readonly plugins: MetadataPlugin[]) {
+  constructor(private readonly node: Node, private readonly socket: WebSocketClient | WebSocketServerConnection, addPeer: (peer: WebSocketClient) => void, crypto: Crypto, onClose: () => void, peers: Peers, private readonly db: Repositories, public readonly plugins: MetadataPlugin[]) {
     // this.HIP1_Conn_Capabilities = new HIP1_Conn_Capabilities(this)
     this.requestManager = new RequestManager() // TODO: split into separate HIP2 class
-    this.HIP4_Conn_Announce = new HIP4_Conn_Announce(crypto, this, addPeer, node)
+    this.HIP4_Conn_Announce = new HIP4_Conn_Announce(crypto, this, addPeer, peers)
     // this.ready = this.requestManager.handshake
-    console.log('[HIP1] Handshake complete')
+    // console.log('[HIP1] Handshake complete')
     // console.log('LOG:', `Creating peer ${socket.address} as ${socket instanceof WebSocketClient ? 'client' : 'server'}`)
     this.socket.onClose(() => {
       this.requestManager.close()
@@ -75,7 +76,7 @@ export class Peer {
   private readonly handlers = { // TODO: Move to HIP5
     request: async <T extends Request['type']>(request: Request & { type: T }, nonce: number) => {
       console.log('LOG:', `Received request from ${this.socket.address}`)
-      this.send.response(await this.node.search(request.type, request.query) as Response<T>, nonce)
+      this.send.response(await this.node.search(request.type, request.query, false) as Response<T>, nonce)
     },
     response: (response: Response, nonce: number) => {
       const resolved = this.requestManager.resolve(nonce, response)
