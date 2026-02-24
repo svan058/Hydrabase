@@ -1,4 +1,4 @@
-import type { Repositories } from './db'
+import type { DB, Repositories } from './db'
 import type MetadataManager from './Metadata'
 import type { SearchResult } from './Metadata'
 import Peers from './Peers'
@@ -8,8 +8,8 @@ import { Crypto } from './Crypto'
 export default class Node {
   private readonly peers: Peers
 
-  constructor(public readonly serverPort: number, dhtPort: number, crypto: Crypto, private readonly metadataManager: MetadataManager, db: Repositories) {
-    this.peers = new Peers(this, serverPort, dhtPort, crypto, metadataManager, db)
+  constructor(public readonly serverPort: number, dhtPort: number, crypto: Crypto, private readonly metadataManager: MetadataManager, repos: Repositories, db: DB) {
+    this.peers = new Peers(this, serverPort, dhtPort, crypto, metadataManager, repos, db)
   }
   public async search<T extends Request['type']>(type: T, query: string, searchPeers = true) {
     console.log('LOG:', 'Searching locally')

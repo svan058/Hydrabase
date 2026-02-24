@@ -26,14 +26,14 @@ declare global {
 const SPOTIFY_CLIENT_ID = process.env['SPOTIFY_CLIENT_ID']
 const SPOTIFY_CLIENT_SECRET = process.env['SPOTIFY_CLIENT_SECRET']
 
-const db = startDatabase()
+const { repos, db } = startDatabase()
 
-const metadataManager = new MetadataManager([new ITunes(), ... SPOTIFY_CLIENT_ID && SPOTIFY_CLIENT_SECRET ? [new Spotify(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET)] : []], db)
+const metadataManager = new MetadataManager([new ITunes(), ... SPOTIFY_CLIENT_ID && SPOTIFY_CLIENT_SECRET ? [new Spotify(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET)] : []], repos)
 
 // Start Dummy Nodes
 for (let i = 1; i < 1+CONFIG.dummyNodes; i++) {
   console.log('LOG:', `Starting dummy node ${i}`)
-  const node = new Node(CONFIG.serverPort+i, CONFIG.dhtPort+i, new Crypto(await getPrivateKey(i)), metadataManager, db)
+  const node = new Node(CONFIG.serverPort+i, CONFIG.dhtPort+i, new Crypto(await getPrivateKey(i)), metadataManager, repos, db)
   await new Promise(res => setTimeout(res, 5_000))
   await node.search('track', 'dont stop me now')
   await node.search('artist', 'jay z')
@@ -41,7 +41,7 @@ for (let i = 1; i < 1+CONFIG.dummyNodes; i++) {
 }
 
 // Start Node
-const node = new Node(CONFIG.serverPort, CONFIG.dhtPort, new Crypto(await getPrivateKey()), metadataManager, db)
+const node = new Node(CONFIG.serverPort, CONFIG.dhtPort, new Crypto(await getPrivateKey()), metadataManager, repos, db)
 
 await new Promise(res => setTimeout(res, 10_000))
 
