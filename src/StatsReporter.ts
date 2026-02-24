@@ -79,7 +79,7 @@ export class StatsReporter {
     const client = this.getPeers()['0x0']
     try {
       const stats = this.collectStats()
-      console.log('LOG:', `${client?.isOpened ? 'Sending stats to client - ' : ''}${stats.connectedPeers} peers, ${stats.cache.tracks + stats.peerData.tracks} tracks`)
+      console.log('LOG:', `${client?.isOpened ? 'Sending stats to client - ' : ''}${stats.connectedPeers} peers, ${stats.cache.tracks + stats.peerData.tracks} track votes`)
       if (client?.isOpened) client.sendStats(stats)
     } catch (err) {
       console.error('ERROR:', 'StatsReporter failed to collect/send stats', err as any)
