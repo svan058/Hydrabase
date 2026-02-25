@@ -73,7 +73,7 @@ export class Peer {
   public readonly announcePeer = (announce: Announce) => this.HIP4_Conn_Announce.sendAnnounce(announce)
 
   private readonly handlers = {
-    request: async <T extends Request['type']>(request: Request & { type: T }, nonce: number) => this.HIP2_Conn_Message.send.response(await this.node.search(request.type, request.query, false) as Response<T>, nonce),
+    request: async <T extends Request['type']>(request: Request & { type: T }, nonce: number) => this.HIP2_Conn_Message.send.response(await this.node.search(request.type, request.query, this.address === '0x0') as Response<T>, nonce),
     response: (response: Response, nonce: number) => { if (!this.requestManager.resolve(nonce, response)) console.warn('WARN:', `Unexpected response nonce ${nonce} from ${this.socket.address}`) },
     announce: (announce: Announce) => this.HIP4_Conn_Announce.handleAnnounce(announce)
   }
