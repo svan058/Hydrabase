@@ -10,7 +10,7 @@ const generatePrivateKey = (): Buffer => {
 }
 
 export const getPrivateKey = async (offset = 0): Promise<Uint8Array> => {
-  const keyFile = Bun.file(`.key${offset}.env`)
+  const keyFile = Bun.file(`data/.key${offset}.env`)
   if (await keyFile.exists()) {
     console.log('LOG:', `[CRYPTO] Loading private key ${offset}`)
     return new Uint8Array(await keyFile.arrayBuffer())
