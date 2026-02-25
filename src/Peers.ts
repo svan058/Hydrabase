@@ -55,7 +55,6 @@ export default class Peers {
 
         if (!peer.isOpened) {
           console.warn('WARN:', `[PEERS] Skipping peer ${address}: connection not open`)
-          delete this.peers[address]
           continue
         }
 
