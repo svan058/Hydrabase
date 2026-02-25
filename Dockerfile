@@ -24,4 +24,4 @@ ENV NODE_ENV=production
 USER bun
 EXPOSE 4545/tcp
 EXPOSE 45454/udp
-CMD bun src
+CMD ls && bun run src/index.ts
