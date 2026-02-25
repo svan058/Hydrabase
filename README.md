@@ -15,10 +15,11 @@ services:
     ports:
       - 4545:4545/tcp
       - 45454:45454/udp
-    # Uncomment for testing
     volumes:
       - ./data:/app/data
     environment:
+      - PUID=1000
+      - PGID=1000
       # Uncomment to enable Spotify plugin:
       # SPOTIFY_CLIENT_ID: $SPOTIFY_CLIENT_ID
       # SPOTIFY_CLIENT_SECRET: $SPOTIFY_CLIENT_SECRET
