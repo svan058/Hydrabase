@@ -36,6 +36,27 @@
       "when": 1771595543933,
       "tag": "0004_dapper_purifiers",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1772071637128,
+      "tag": "0005_natural_jane_foster",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1772071843299,
+      "tag": "0006_milky_puma",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1772072060982,
+      "tag": "0007_opposite_brother_voodoo",
+      "breakpoints": true
     }
   ]
 }

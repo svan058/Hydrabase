@@ -1,8 +1,9 @@
 import { sqliteTable, text, integer, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
-export const schema = {
-  track: sqliteTable('tracks', {
+export const track = sqliteTable('tracks', {
     id: text('id').notNull(),
+    artist_id: text('artist_id'),
+    soul_id: text('soul_id').notNull(),
     plugin_id: text('plugin_id').notNull(),
     name: text('name').notNull(),
     artists: text('artists').notNull(),
@@ -14,9 +15,11 @@ export const schema = {
     image_url: text('image_url').notNull(),
     address: text('address').notNull(),
     confidence: integer('confidence').notNull(),
-  }, table => [uniqueIndex('idx_plugin_track').on(table.plugin_id, table.id, table.address)]),
-  artist: sqliteTable('artists', {
+  }, table => [uniqueIndex('idx_plugin_track').on(table.plugin_id, table.id, table.address)])
+
+export const artist = sqliteTable('artists', {
     id: text('id').notNull(),
+    soul_id: text('soul_id').notNull(),
     plugin_id: text('plugin_id').notNull(),
     name: text('name').notNull(),
     popularity: integer('popularity').notNull(),
@@ -26,9 +29,12 @@ export const schema = {
     image_url: text('image_url').notNull(),
     address: text('address').notNull(),
     confidence: integer('confidence').notNull(),
-  }, table => [uniqueIndex('idx_plugin_artist').on(table.plugin_id, table.id, table.address)]),
-  album: sqliteTable('albums', {
+  }, table => [uniqueIndex('idx_plugin_artist').on(table.plugin_id, table.id, table.address)])
+
+export const album = sqliteTable('albums', {
     id: text('id').notNull(),
+    artist_id: text('artist_id'),
+    soul_id: text('soul_id').notNull(),
     plugin_id: text('plugin_id').notNull(),
     name: text('name'),
     artists: text('artists'),
@@ -40,5 +46,5 @@ export const schema = {
     address: text('address').notNull(),
     confidence: integer('confidence').notNull(),
   }, table => [uniqueIndex('idx_plugin_album').on(table.plugin_id, table.id, table.address)])
-} as const
+export const schema = { track, artist, album } as const
 // bunx drizzle-kit generate --dialect sqlite --schema ./src/db/schema.ts
