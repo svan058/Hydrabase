@@ -63,7 +63,7 @@ export class StatsReporter {
       address: this.address,
       installedPlugins: this.plugins.map(p => p.id),
       knownPlugins: this.knownPlugins(),
-      knownPeers: this.knownPeers(),
+      knownPeers: this.knownPeers().filter(a => a !== '0x0'),
       connectedPeers: Object.keys(peers).filter(a => a !== '0x0').length,
       peers: await Promise.all(Object.entries(peers)
         .filter(([address]) => address !== '0x0')
