@@ -51,7 +51,6 @@ export class StatsReporter {
   ) {
     this.report()
     setInterval(() => this.report(), this.intervalMs)
-    console.log('LOG:', `Reporting stats every ${this.intervalMs / 1000}s`)
   }
 
   private async collectStats(): Promise<NodeStats> {
@@ -64,7 +63,7 @@ export class StatsReporter {
       address: this.address,
       installedPlugins: this.plugins.map(p => p.id),
       knownPlugins: this.knownPlugins(),
-      knownPeers: this.knownPeers(),
+      knownPeers: this.knownPeers().filter(a => a !== '0x0'),
       connectedPeers: Object.keys(peers).filter(a => a !== '0x0').length,
       peers: await Promise.all(Object.entries(peers)
         .filter(([address]) => address !== '0x0')
@@ -89,7 +88,6 @@ export class StatsReporter {
     const client = this.getPeers()['0x0']
     try {
       const stats = await this.collectStats()
-      console.log('LOG:', `${client?.isOpened ? 'Sending stats to client - ' : ''}${stats.connectedPeers} peers, ${stats.votes.tracks + stats.peerData.tracks} track votes`)
       if (client?.isOpened) client.sendStats(stats)
     } catch (err) {
       console.error('ERROR:', 'StatsReporter failed to collect/send stats', err)

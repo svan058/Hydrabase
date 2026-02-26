@@ -27,7 +27,7 @@ interface VoteCounts { tracks: number; artists: number; albums: number }
 interface EventEntry { t: string; lv: string; m: string }
 
 const fmt = (n: number | null | undefined, d = 1): string => n == null ? "—" : Number(n).toFixed(d);
-const fmtBytes = (kb: number): string => kb > 1024 ? `${(kb / 1024).toFixed(2)} MB` : `${kb} KB`;
+const fmtBytes = (bytes: number): string => bytes > 1024*1024 ? `${(bytes / 1024 / 1024).toFixed(2)}MB` : bytes > 1024 ? `${(bytes / 1024).toFixed(2)}KB` : `${bytes}B`;
 const shortAddr = (a?: string | null): string => a ? `${a.slice(0, 10)}…${a.slice(-6)}` : "—";
 const SC = { connected: "#3fb950", disconnected: "#f85149" } as const
 
@@ -302,7 +302,7 @@ function Dashboard({ socket, apiKey }: { socket: string, apiKey: string }) {
       </div>
     </div>
   </div>
-  const latColor  = (ms: number) => ms<50?"#3fb950":ms<120?"#d29922":"#f85149"
+  const latColor  = (ms: number) => ms<100?"#3fb950":ms<250?"#f7c559":ms<500?"#d28622":"#f85149"
   const confColor = (c: number)  => c>.8?"#3fb950":c>.5?"#d29922":"#f85149"
 
   return <div style={{ minHeight:"100vh", background:BG, color:TEXT, fontFamily:"'JetBrains Mono','Courier New',monospace", fontSize:13 }}>
@@ -336,7 +336,7 @@ function Dashboard({ socket, apiKey }: { socket: string, apiKey: string }) {
         ))}
       </div>
       <div style={{ display:"flex", alignItems:"center", gap:18, fontSize:11 }}>
-        {lastPoll && <span style={{ color:MUTED }}>last poll {lastPoll.toISOString().slice(11,19)}</span>}
+        {lastPoll && <span style={{ color:MUTED }}>last poll: {`${Math.round((Date.now()-+lastPoll)/1000)}s ago`}</span>}
         <span style={{ color:MUTED }}>⏱ {`${String(Math.floor(uptime/3600)).padStart(2,"0")}:${String(Math.floor(uptime/60)%60).padStart(2,"0")}:${String(uptime%60).padStart(2,"0")}`}</span>
         <span style={{ color:"#3fb950" }}>↓ {fmtBytes(totalRx)}</span>
         <span style={{ color:"#f0883e" }}>↑ {fmtBytes(totalTx)}</span>
@@ -353,7 +353,7 @@ function Dashboard({ socket, apiKey }: { socket: string, apiKey: string }) {
             {SC2("Connected Peers", connCount, `${peers.length} known`, "#3fb950")}
             {SC2("↓ RX", fmtBytes(totalRx), `total ${fmtBytes(totalRx)}`, ACCENT)}
             {SC2("↑ TX", fmtBytes(totalTx), `total ${fmtBytes(totalTx)}`, "#f0883e")}
-            {SC2("Avg Latency", avgLat ? `${fmt(avgLat,0)}ms` : 'N/A', `${connCount} peers measured`, "#d29922")}
+            {SC2("Avg Latency", avgLat ? `${fmt(avgLat,0)}ms` : 'N/A', `${connCount} peers measured`, latColor(avgLat))}
             {SC2("DHT Nodes", dhtNodes.length.toString(), "routing table entries", "#a5d6ff")}
             {SC2("Your Votes", `${votes.tracks+votes.artists+votes.albums}`, `${votes.tracks} tracks / ${votes.artists} artists / ${votes.albums} albums`, "#bc8cff")}
           </div>
@@ -446,12 +446,11 @@ function Dashboard({ socket, apiKey }: { socket: string, apiKey: string }) {
       {tab==="dht" && <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))", gap:10 }}>
           {SC2("Total Nodes", dhtNodes.length.toString(), "in routing table", ACCENT)}
-          {SC2("Last Refresh", lastPoll ? `${Math.round((Date.now()-+lastPoll)/1000)}s ago` : "—", "last WS poll", "#3fb950")}
           {SC2("WS Status", wsState.toUpperCase(), socket.replace("wss://",""), wsState==="open"?"#3fb950":"#f85149")}
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
           <div style={P()}>
-            <PH label="DHT Node Count" right="60s simulated" />
+            <PH label="DHT Node Count" />
             <div style={{ padding:"10px 14px 8px" }}>
               <AreaChart series={[{label:"Nodes",data:dhtNodeCounts,color:"#a5d6ff"}]} labels={tLabels} height={160}/>
             </div>
