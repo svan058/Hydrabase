@@ -73,25 +73,39 @@ export default class MetadataManager implements MetadataPlugin {
   public readonly id = 'Hydrabase'
   constructor(private readonly plugins: MetadataPlugin[], private readonly db: Repositories) {}
 
+  private mergeBySoulId<T extends { soul_id: string, address: `0x${string}` }>(primary: T[], secondary: T[]): T[] {
+    const seen = new Set(primary.map(r => `${r.soul_id}:${r.address}`))
+    return [...primary, ...secondary.filter(r => !seen.has(`${r.soul_id}:${r.address}`))]
+  }
+
   async searchTrack(query: string): Promise<TrackSearchResult[]> {
-    const results: TrackSearchResult[] = []; // TODO: search db
-    for (const plugin of this.plugins) results.push(...await plugin.searchTrack(query))
+    const [cached, ...pluginResults] = await Promise.all([
+      this.db.track.searchByName(query),
+      ...this.plugins.map(p => p.searchTrack(query))
+    ])
+    const results = pluginResults.flat().map(result => ({ ...result, address: '0x0' as const }))
     for (const result of results) this.db.track.upsertFromPlugin(result)
-    return results.map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` }));
+    return this.mergeBySoulId(results, cached)
   }
 
   async searchArtist(query: string): Promise<ArtistSearchResult[]> {
-    const results: ArtistSearchResult[] = []; // TODO: search db
-    for (const plugin of this.plugins) results.push(...await plugin.searchArtist(query))
+    const [cached, ...pluginResults] = await Promise.all([
+      this.db.artist.searchByName(query),
+      ...this.plugins.map(p => p.searchArtist(query))
+    ])
+    const results = pluginResults.flat().map(result => ({ ...result, address: '0x0' as const }))
     for (const result of results) this.db.artist.upsertFromPlugin(result)
-    return results.map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` }));
+    return this.mergeBySoulId(results, cached)
   }
 
   async searchAlbum(query: string): Promise<AlbumSearchResult[]> {
-    const results: AlbumSearchResult[] = []; // TODO: search db
-    for (const plugin of this.plugins) results.push(...await plugin.searchAlbum(query))
+    const [cached, ...pluginResults] = await Promise.all([
+      this.db.album.searchByName(query),
+      ...this.plugins.map(p => p.searchAlbum(query))
+    ])
+    const results = pluginResults.flat().map(result => ({ ...result, address: '0x0' as const }))
     for (const result of results) this.db.album.upsertFromPlugin(result)
-    return results.map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` }));
+    return this.mergeBySoulId(results, cached)
   }
 
   async searchDiscog(artistSoulId: string): Promise<AlbumSearchResult[]> {
