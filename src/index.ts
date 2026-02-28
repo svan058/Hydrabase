@@ -1,55 +1,20 @@
-import ITunes from './Metadata/plugins/iTunes'
-import MetadataManager from './Metadata'
 import Node from './Node'
-import { CONFIG } from './config';
-import Spotify from './Metadata/plugins/Spotify';
-import { Crypto, getPrivateKey } from './Crypto';
-import { startDatabase } from './db';
+import { error } from './log';
 
-process.on('unhandledRejection', (err) => {
-  console.error('ERROR:', 'Unhandled rejection', err)
-})
-process.on('uncaughtException', (err) => {
-  console.error('ERROR:', 'Uncaught exception', err)
-})
+process.on('unhandledRejection', (err) => error('ERROR:', '[MAIN] Unhandled rejection', {err}))
+process.on('uncaughtException', (err) => error('ERROR:', '[MAIN] Uncaught exception', {err}))
 
-declare global {
-  interface Console {
-    error(level: 'ERROR:', message: string, context?: `- ${string}` | Record<string, unknown>): void;
-    warn(level: 'WARN:', message: string, context?: `- ${string}` | Record<string, unknown>): void;
-    log(level: 'LOG:', message: string, context?: `- ${string}` | Record<string, unknown>): void;
-  }
+const node = await Node.init()
+
+const artists = await node.search('artist', 'jay z')
+/*const track = */await node.search('track', 'dont stop me now')
+/*const album = */await node.search('album', 'made in england')
+// log('LOG:', 'Artist results:', artists)
+// log('LOG:', 'Track results:', track)
+// log('LOG:', 'Album results:', album)
+if (artists[0]) {
+  await node.search('artist.tracks', artists[0].soul_id)
+  await node.search('artist.albums', artists[0].soul_id)
 }
 
 // TODO: Merge duplicate artists from diff plugins
-
-const SPOTIFY_CLIENT_ID = process.env['SPOTIFY_CLIENT_ID']
-const SPOTIFY_CLIENT_SECRET = process.env['SPOTIFY_CLIENT_SECRET']
-
-const { repos, db } = startDatabase()
-
-const metadataManager = new MetadataManager([new ITunes(), ... SPOTIFY_CLIENT_ID && SPOTIFY_CLIENT_SECRET ? [new Spotify(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET)] : []], repos)
-
-// Start Node
-const node = new Node(CONFIG.serverPort, CONFIG.dhtPort, new Crypto(await getPrivateKey()), metadataManager, repos, db)
-
-let i = 0
-const id = setInterval(async () => {
-  if (node.peerCount === 0) {
-    if (i === 0) console.log('LOG:', 'Waiting to connect to peers')
-    if (i > 12) console.warn('WARN:', 'Taking a while to find peers to connect to')
-    i++
-    return
-  }
-  clearInterval(id)
-  const artists = await node.search('artist', 'jay z')
-  /*const track = */await node.search('track', 'dont stop me now')
-  /*const album = */await node.search('album', 'made in england')
-  // console.log('LOG:', 'Artist results:', artists)
-  // console.log('LOG:', 'Track results:', track)
-  // console.log('LOG:', 'Album results:', album)
-  if (artists[0]) {
-    await node.search('artist.tracks', artists[0].soul_id)
-    await node.search('artist.albums', artists[0].soul_id)
-  }
-}, 5_000)

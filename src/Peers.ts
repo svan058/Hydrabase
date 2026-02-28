@@ -11,6 +11,7 @@ import { discoverPeers } from './networking/dht'
 import type { Request } from './RequestManager';
 import type Node from './Node';
 import { StatsReporter } from './StatsReporter';
+import { log, warn, error } from './log';
 
 const cacheFile = Bun.file('./data/ws-servers.json')
 
@@ -21,21 +22,21 @@ parser.functions.avg = (...args: number[]) => avg(args)
 export default class Peers {
   private readonly peers: { [address: `0x${string}`]: Peer } = {}
 
-  constructor(private readonly node: Node, public readonly serverPort: number, dhtPort: number, private readonly crypto: Crypto, private readonly metadataManager: MetadataManager, private readonly repos: Repositories, private readonly db: DB) {
-    startServer(crypto, serverPort, this)
-    const dht = discoverPeers(serverPort, dhtPort, crypto, this)
+  constructor(private readonly node: Node, private readonly crypto: Crypto, private readonly metadataManager: MetadataManager, private readonly repos: Repositories, private readonly db: DB) {
+    startServer(crypto, this)
+    const dht = discoverPeers(crypto, this)
     new StatsReporter(crypto.address, metadataManager.installedPlugins, () => this.peers, db, dht)
 
     cacheFile.exists().then(exists => {
       if (!exists) return
-      cacheFile.json().then((hostnames: `ws://${string}`[]) => hostnames.filter(hostname => hostname !== 'ws://').forEach(hostname => WebSocketClient.init(crypto, hostname, `ws://${CONFIG.serverHostname}:${serverPort}`, this).then(socket => { if (socket) this.add(socket) })))
+      cacheFile.json().then((hostnames: `ws://${string}`[]) => hostnames.filter(hostname => hostname !== 'ws://').forEach(hostname => WebSocketClient.init(crypto, hostname, `ws://${CONFIG.serverHostname}:${CONFIG.serverPort}`, this).then(socket => { if (socket) this.add(socket) })))
     })
     
     let lastCount = 0
     setInterval(() => {
       if (lastCount === this.count) return
       lastCount = this.count
-      console.log('LOG:', `[PEERS] Connected to ${this.count} peer${this.count === 1 ? '' : 's'}`)
+      log('LOG:', `[PEERS] Connected to ${this.count} peer${this.count === 1 ? '' : 's'}`)
     }, 1_000)
   }
 
@@ -43,7 +44,7 @@ export default class Peers {
     const peer = new Peer(this.node, socket, peer => this.add(peer), this.crypto, () => { delete this.peers[socket.address] }, this, this.repos, this.db, this.metadataManager.installedPlugins)
     if (socket.address in this.peers) {
       if (socket.address !== '0x0') {
-        console.warn('WARN:', `Tried to connect to existing peer again via ${socket instanceof WebSocketClient ? 'client' : 'server'} ${socket.address} ${socket.hostname}`)
+        warn('DEVWARN:', `[PEERS] Tried to connect to existing peer again via ${socket instanceof WebSocketClient ? 'client' : 'server'} ${socket.address} ${socket.hostname}`)
         socket.close()
       }
       return
@@ -61,7 +62,8 @@ export default class Peers {
 
   public async requestAll<T extends Request['type']>(request: Request & { type: T }, confirmedHashes: Set<bigint>, installedPlugins: Set<string>) {
     const results = new Map<bigint, Exclude<SearchResult[T], 'confidence'> & { confidences: number[] }>()
-    console.log('LOG:', `[PEERS] Searching ${Object.keys(this.peers).filter(address => address !== '0x0').length} peers for ${request.type}: ${request.query}`)
+    const peerCount = Object.keys(this.peers).filter(address => address !== '0x0').length
+    log('LOG:', `[PEERS] Searching ${peerCount} peer${peerCount === 1 ? '' : 's'} for ${request.type}: ${request.query}`)
     for (const _address in this.peers) {
       try {
         const address = _address as `0x${string}`
@@ -69,7 +71,7 @@ export default class Peers {
         const peer = this.peers[address]!
 
         if (!peer.isOpened) {
-          console.warn('WARN:', `[PEERS] Skipping peer ${address}: connection not open`)
+          warn('WARN:', `[PEERS] Skipping peer ${address}: connection not open`)
           continue
         }
 
@@ -96,7 +98,7 @@ export default class Peers {
           results.set(hash, { ...result as Exclude<SearchResult[T], 'confidence'>, confidences: [...results.get(hash)?.confidences ?? [], finalConfidence] })
         }
       } catch(e) {
-        console.error('ERROR:', e)
+        error('ERROR:', e)
       }
     }
 

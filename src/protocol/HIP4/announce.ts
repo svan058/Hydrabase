@@ -3,6 +3,7 @@ import WebSocketClient from '../../networking/ws/client'
 import type { Crypto } from '../../Crypto'
 import type { Peer } from '../../networking/ws/peer'
 import type Peers from '../../Peers'
+import { log } from '../../log'
 
 export const AnnounceSchema = z.object({ hostname: z.string().startsWith('ws://').transform((val) => val as `ws://${string}`) })
 export type Announce = z.infer<typeof AnnounceSchema>
@@ -12,12 +13,12 @@ export class HIP4_Conn_Announce {
 
   sendAnnounce(announce: Announce, address: `0x${string}`): void {
     if (this.peer.hostname === announce.hostname || this.peer.address === address) return
-    console.log('LOG:', `[HIP4] Announcing server ${announce.hostname} ${address}`)
+    log('LOG:', `[HIP4] Announcing server ${announce.hostname} ${address}`)
     this.peer.send(JSON.stringify({ announce }))
   }
 
   async handleAnnounce(announce: Announce): Promise<void> {
-    console.log('LOG:', `[HIP4] Discovered server through ${this.peer.address}: ${announce.hostname}`)
+    log('LOG:', `[HIP4] Discovered server through ${this.peer.address}: ${announce.hostname}`)
     const peer = await WebSocketClient.init(this.crypto, announce.hostname, this.peer.hostname, this.peers)
     if (peer) this.addPeer(peer)
   }

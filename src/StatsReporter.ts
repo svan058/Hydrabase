@@ -3,6 +3,7 @@ import type { DB } from './db'
 import type { MetadataPlugin } from './Metadata'
 import type { Peer } from './networking/ws/peer'
 import type { DHTNode } from 'bittorrent-dht'
+import { error } from './log'
 
 export interface ApiPeer {
   status: "connected" | "disconnected";
@@ -90,7 +91,7 @@ export class StatsReporter {
       const stats = await this.collectStats()
       if (client?.isOpened) client.sendStats(stats)
     } catch (err) {
-      console.error('ERROR:', 'StatsReporter failed to collect/send stats', err)
+      error('ERROR:', '[STATS] Failed to collect/send stats', {err})
     }
   }
 

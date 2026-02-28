@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import { keccak256 } from 'js-sha3'
 import secp256k1 from 'secp256k1'
 import SuperJSON from 'superjson'
+import { log } from './log'
 
 const generatePrivateKey = (): Buffer => {
   const key = crypto.randomBytes(32);
@@ -12,10 +13,10 @@ const generatePrivateKey = (): Buffer => {
 export const getPrivateKey = async (offset = 0): Promise<Uint8Array> => {
   const keyFile = Bun.file(`data/.key${offset}.env`)
   if (await keyFile.exists()) {
-    console.log('LOG:', `[CRYPTO] Loading private key ${offset}`)
+    log('LOG:', `[CRYPTO] Loading private key ${offset}`)
     return new Uint8Array(await keyFile.arrayBuffer())
   }
-  console.log('LOG:', `[CRYPTO] Generating private key ${offset}`)
+  log('LOG:', `[CRYPTO] Generating private key ${offset}`)
   const privateKey = generatePrivateKey()
   await keyFile.write(privateKey)
   return privateKey

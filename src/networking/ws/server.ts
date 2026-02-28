@@ -5,6 +5,7 @@ import { portForward } from '../upnp'
 import { readFileSync } from "fs";
 import { join } from "path";
 import type Peers from '../../Peers';
+import { log, warn } from '../../log';
 
 interface WebSocketData {
   isOpened: boolean
@@ -67,7 +68,7 @@ await Bun.build({
   conditions: ["browser", "module", "import"],
 });
 
-export const startServer = (crypto: Crypto, port: number, peers: Peers) => {
+export const startServer = (crypto: Crypto, peers: Peers, port=CONFIG.serverPort) => {
   portForward(port, 'Hydrabase (TCP)', 'TCP');
   const server = Bun.serve({
     port,
@@ -81,7 +82,7 @@ export const startServer = (crypto: Crypto, port: number, peers: Peers) => {
         if (url.pathname === "/src/main.tsx") return Bun.file(`./dist/main.js`)
         if (url.pathname === "/dashboard/") return Bun.file(`./dashboard/index.html`)
 
-        console.log('LOG:', `[SERVER] Connecting to client`)
+        log('LOG:', `[SERVER] Connecting to client`)
         const headers = Object.fromEntries(req.headers.entries())
         const _address = await HIP3_CONN_Authentication.verifyServerAddress(headers, port)
         if (_address instanceof Response) return [_address.status, await _address.text()]
@@ -95,7 +96,7 @@ export const startServer = (crypto: Crypto, port: number, peers: Peers) => {
       }
       const response = await res()
       if (Array.isArray(response)) {
-        console.warn('WARN:', `[SERVER] Rejected connection with client ${[address,hostname].join(' ') ?? 'N/A'} for reason: ${response[1]}`)
+        warn('DEVWARN:', `[SERVER] Rejected connection with client ${[address,hostname].join(' ') ?? 'N/A'} for reason: ${response[1]}`)
         return new Response(response[1], { status: response[0] })
       } else if (response) return new Response(response)
       return response
@@ -118,5 +119,5 @@ export const startServer = (crypto: Crypto, port: number, peers: Peers) => {
       }
     }
   })
-  console.log('LOG:', `[SERVER] Listening on port ${server.port}`)
+  log('LOG:', `[SERVER] Listening on port ${server.port}`)
 }
