@@ -14,17 +14,11 @@ export default class WebSocketClient {
   private messageHandler?: (message: string) => void
   private closeHandler?: () => void
   private openHandler?: () => void
-  private _retryQueue: Array<() => void> = []
-  private _reconnectTimer: ReturnType<typeof setTimeout> | null = null
-  private _reconnectDelay = 1000
-  private readonly _maxReconnectDelay = 30000
+  private retryQueue: Array<() => void> = []
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  private reconnectAttempts = 0
 
-  private constructor(
-    crypto: Crypto,
-    public readonly address: `0x${string}`,
-    public readonly hostname: `ws://${string}`,
-    private readonly selfHostname: `ws://${string}`
-  ) {
+  private constructor(crypto: Crypto, public readonly address: `0x${string}`, public readonly hostname: `ws://${string}`, private readonly selfHostname: `ws://${string}`) {
     this._connect(crypto)
   }
 
@@ -36,7 +30,6 @@ export default class WebSocketClient {
     this.socket.addEventListener('open', () => {
       console.log('LOG:', `[CLIENT] Connected to server ${this.hostname} ${this.address}`)
       this._isOpened = true
-      this._reconnectDelay = 1000 // reset backoff on success
       this._flushQueue()
       this.openHandler?.()
     })
@@ -52,7 +45,6 @@ export default class WebSocketClient {
       console.warn('WARN:', `[CLIENT] Connection failed with server ${this.hostname} ${this.address}`, err)
       this._isOpened = false
       this.closeHandler?.()
-      // close event fires after error, so reconnect is handled there
     })
 
     this.socket.addEventListener('message', message => this.messageHandler?.(message.data))
@@ -73,26 +65,27 @@ export default class WebSocketClient {
   }
 
   private _scheduleReconnect(crypto: Crypto) {
-    if (this._reconnectTimer) return
-    console.log('LOG:', `[CLIENT] Reconnecting to ${this.address} ${this.hostname} in ${this._reconnectDelay}ms...`)
-    this._reconnectTimer = setTimeout(() => {
-      this._reconnectTimer = null
+    console.log('Scheduling reconnect')
+    if (this.reconnectTimer) return
+    console.log('LOG:', `[CLIENT] Reconnecting to ${this.address} ${this.hostname} in ${this.reconnectAttempts*5_000}ms...`)
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null
       this._connect(crypto)
-    }, this._reconnectDelay)
-    this._reconnectDelay = Math.min(this._reconnectDelay * 2, this._maxReconnectDelay)
+    }, this.reconnectAttempts*5_000)
+    this.reconnectAttempts++
   }
 
   private _flushQueue() {
-    const queue = this._retryQueue.splice(0)
+    const queue = this.retryQueue.splice(0)
     for (const fn of queue) fn()
   }
 
   public readonly close = () => {
-    if (this._reconnectTimer) {
-      clearTimeout(this._reconnectTimer)
-      this._reconnectTimer = null
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
     }
-    this._retryQueue = []
+    this.retryQueue = []
     this.socket.close()
   }
 
@@ -102,7 +95,7 @@ export default class WebSocketClient {
 
   send(data: string) {
     if (this._isOpened) this.socket.send(data)
-    else this._retryQueue.push(() => this.socket.send(data))
+    else this.retryQueue.push(() => this.socket.send(data))
   }
 
   public onMessage(handler: (message: string) => void) {
