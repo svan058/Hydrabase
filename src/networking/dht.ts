@@ -44,7 +44,7 @@ export const discoverPeers = (serverPort: number, dhtPort: number, addPeer: (pee
       console.log('LOG:', `[DHT] Connected to ${nodes} nodes`)
       lastNodes = nodes
     }
-    Bun.write('./data/dht-nodes.json', JSON.stringify(dht.toJSON().nodes))
+    cacheFile.write(JSON.stringify(dht.toJSON().nodes))
     // console.log('LOG:', `[DHT] Discovered node ${node.host}:${node.port}`)
   })
   dht.on('peer', async peer => {
