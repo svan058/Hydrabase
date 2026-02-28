@@ -172,7 +172,7 @@ export default class MetadataManager implements MetadataPlugin {
     if (request.type === 'artist.albums') return await this.lookupAlbums(request.query, peers)
     if (request.type === 'artist.tracks') return await this.lookupTracks(request.query, peers)
     else {
-      console.warn('WARN:', 'Invalid request')
+      console.warn('DEVWARN:', 'Invalid request')
       return []
     }
   }

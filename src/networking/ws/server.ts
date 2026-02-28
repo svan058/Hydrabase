@@ -95,7 +95,7 @@ export const startServer = (crypto: Crypto, port: number, peers: Peers) => {
       }
       const response = await res()
       if (Array.isArray(response)) {
-        console.warn('WARN:', `[SERVER] Rejected connection with client ${[address,hostname].join(' ') ?? 'N/A'} for reason: ${response[1]}`)
+        console.warn('DEVWARN:', `[SERVER] Rejected connection with client ${[address,hostname].join(' ') ?? 'N/A'} for reason: ${response[1]}`)
         return new Response(response[1], { status: response[0] })
       } else if (response) return new Response(response)
       return response

@@ -32,7 +32,7 @@ const verify = {
       const auth = AuthSchema.parse(JSON.parse(data))
       const signature = Signature.fromString(auth.signature)
       if (!signature.verify(`I am ${hostname}`, auth.address)) {
-        console.warn('WARN:', 'Invalid authentication from server')
+        console.warn('DEVWARN:', 'Invalid authentication from server')
         return false
       }
       return auth.address

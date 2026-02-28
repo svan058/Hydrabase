@@ -43,7 +43,7 @@ export default class Peers {
     const peer = new Peer(this.node, socket, peer => this.add(peer), this.crypto, () => { delete this.peers[socket.address] }, this, this.repos, this.db, this.metadataManager.installedPlugins)
     if (socket.address in this.peers) {
       if (socket.address !== '0x0') {
-        console.warn('WARN:', `Tried to connect to existing peer again via ${socket instanceof WebSocketClient ? 'client' : 'server'} ${socket.address} ${socket.hostname}`)
+        console.warn('DEVWARN:', `Tried to connect to existing peer again via ${socket instanceof WebSocketClient ? 'client' : 'server'} ${socket.address} ${socket.hostname}`)
         socket.close()
       }
       return
@@ -61,7 +61,8 @@ export default class Peers {
 
   public async requestAll<T extends Request['type']>(request: Request & { type: T }, confirmedHashes: Set<bigint>, installedPlugins: Set<string>) {
     const results = new Map<bigint, Exclude<SearchResult[T], 'confidence'> & { confidences: number[] }>()
-    console.log('LOG:', `[PEERS] Searching ${Object.keys(this.peers).filter(address => address !== '0x0').length} peers for ${request.type}: ${request.query}`)
+    const peerCount = Object.keys(this.peers).filter(address => address !== '0x0').length
+    console.log('LOG:', `[PEERS] Searching ${peerCount} peer${peerCount === 1 ? '' : 's'} for ${request.type}: ${request.query}`)
     for (const _address in this.peers) {
       try {
         const address = _address as `0x${string}`

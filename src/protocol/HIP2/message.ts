@@ -20,13 +20,13 @@ export class HIP2_Conn_Message {
 
     const type = HIP2_Conn_Message.identifyType(result)
     if (!type) {
-      console.warn('WARN:', `[HIP2] Unexpected message from ${this.peer.address}`, `- ${message}`)
+      console.warn('DEVWARN:', `[HIP2] Unexpected message from ${this.peer.address}`, `- ${message}`)
       return false
     }
 
     const data = MessageSchemas[type].safeParse(result[type]).data
     if (!data) {
-      console.warn('WARN:', `[HIP2] Unexpected ${type} from ${this.peer.address}`, `- ${message}`)
+      console.warn('DEVWARN:', `[HIP2] Unexpected ${type} from ${this.peer.address}`, `- ${message}`)
       return false
     }
     
