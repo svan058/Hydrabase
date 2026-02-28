@@ -1,4 +1,4 @@
-import DHT from 'bittorrent-dht'
+import DHT, { type DHTNode } from 'bittorrent-dht'
 import krpc from 'k-rpc'
 import { portForward } from './upnp'
 import WebSocketClient from './ws/client';
@@ -9,6 +9,8 @@ import type Peers from '../Peers';
 const knownPeers = new Set<`${string}:${number}`>();
 
 const getRoomId = () => Bun.SHA1.hash(CONFIG.dhtRoomSeed + String(Math.round(Date.now()/1000/60/60)), 'hex')
+
+const cacheFile = Bun.file('./data/dht-nodes.json')
 
 const announce = (dht: DHT, port: number) => {
   const room = getRoomId()
@@ -22,6 +24,10 @@ export const discoverPeers = (serverPort: number, dhtPort: number, addPeer: (pee
     krpc: krpc(),
     bootstrap: ['router.bittorrent.com:6881', 'router.utorrent.com:6881', 'dht.transmissionbt.com:6881']
   })
+  cacheFile.exists().then(exists => {
+    if (!exists) return
+    cacheFile.json().then((peers: DHTNode[]) => peers.forEach(peer => dht.addNode(peer)))
+  })
   dht.listen(dhtPort, '0.0.0.0', () => console.log('LOG:', `[DHT] Listening on port ${dhtPort}`))
   dht.on('error', err => console.error('ERROR:', '[DHT] An error occurred', err))
   // dht.on('warning', warning => console.warn('WARN:', '[DHT] A warning was thrown', warning))
@@ -30,9 +36,6 @@ export const discoverPeers = (serverPort: number, dhtPort: number, addPeer: (pee
 
     announce(dht, serverPort)
     setInterval(() => announce(dht, serverPort), CONFIG.dhtReannounce)
-
-    // dht.addNode({ host: 'ddns.yazdani.au', port: 45454 })
-    // dht.addNode({ host: 'ddns.yazdani.au', port: 45455 })
   })
   let lastNodes = 0
   dht.on('node', () => {
@@ -41,6 +44,7 @@ export const discoverPeers = (serverPort: number, dhtPort: number, addPeer: (pee
       console.log('LOG:', `[DHT] Connected to ${nodes} nodes`)
       lastNodes = nodes
     }
+    Bun.write('./data/dht-nodes.json', JSON.stringify(dht.toJSON().nodes))
     // console.log('LOG:', `[DHT] Discovered node ${node.host}:${node.port}`)
   })
   dht.on('peer', async peer => {
