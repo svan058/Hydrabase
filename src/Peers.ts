@@ -40,8 +40,11 @@ export default class Peers {
   }
 
   public add(socket: WebSocketClient | WebSocketServerConnection) {
-    if (socket.address in this.peers) return socket.close()
     const peer = new Peer(this.node, socket, peer => this.add(peer), this.crypto, () => { delete this.peers[socket.address] }, this, this.repos, this.db, this.metadataManager.installedPlugins)
+    if (socket.address in this.peers) {
+      if (socket.address !== '0x0') socket.close()
+      return
+    }
     this.peers[socket.address] = peer
     cacheFile.write(JSON.stringify(Object.values(this.peers).map(peer => peer.hostname)))
     this.announce(peer)
