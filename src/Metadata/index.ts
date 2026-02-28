@@ -1,6 +1,7 @@
 import z from 'zod';
 import type { Request } from '../RequestManager'
 import type { Repositories } from '../db';
+import type Peers from '../Peers';
 
 export const TrackSearchResultSchema = z.object({
   soul_id: z.string(),
@@ -121,21 +122,7 @@ export default class MetadataManager implements MetadataPlugin {
         return p.lookupAlbums(id)
       }
 
-      const votes = new Map<string, { peerConfidences: number[], artistConfidences: number[] }>()
-      for (const artist of pluginArtists) {
-        const pastVotes = votes.get(artist.id) ?? { peerConfidences: [], artistConfidences: [] }
-        pastVotes.artistConfidences.push(artist.confidence)
-        pastVotes.peerConfidences.push(1) // TODO: calculate peer score // { address: artist.address }
-        votes.set(artist.id, pastVotes)
-      }
-
-      const artistConfidences = new Map<string, number>()
-      for (const entry of votes) {
-        const [artistId, votes] = entry
-        artistConfidences.set(artistId, computeConfidence(votes.artistConfidences, votes.peerConfidences))
-      }
-      
-      const bestId = artistConfidences.size ? [...artistConfidences.entries()].reduce((a, b) => b[1] > a[1] ? b : a)[0] : undefined
+      const bestId = matchArtistId(pluginArtists)
       if (bestId) {
         artistIds.set(p.id, bestId)
         return p.lookupAlbums(bestId)
@@ -158,21 +145,7 @@ export default class MetadataManager implements MetadataPlugin {
         return p.lookupTracks(id)
       }
 
-      const votes = new Map<string, { peerConfidences: number[], artistConfidences: number[] }>()
-      for (const artist of pluginArtists) {
-        const pastVotes = votes.get(artist.id) ?? { peerConfidences: [], artistConfidences: [] }
-        pastVotes.artistConfidences.push(artist.confidence)
-        pastVotes.peerConfidences.push(1) // TODO: calculate peer score // { address: artist.address }
-        votes.set(artist.id, pastVotes)
-      }
-
-      const artistConfidences = new Map<string, number>()
-      for (const entry of votes) {
-        const [artistId, votes] = entry
-        artistConfidences.set(artistId, computeConfidence(votes.artistConfidences, votes.peerConfidences))
-      }
-      
-      const bestId = artistConfidences.size ? [...artistConfidences.entries()].reduce((a, b) => b[1] > a[1] ? b : a)[0] : undefined
+      const bestId = matchArtistId(pluginArtists)
       if (bestId) {
         artistIds.set(p.id, bestId)
         return p.lookupTracks(bestId)
@@ -200,7 +173,25 @@ export default class MetadataManager implements MetadataPlugin {
   public get installedPlugins(): MetadataPlugin[] { return this.plugins }
 }
 
-function computeConfidence(artistConfidences: number[], peerConfidences: number[], k = 1.0): number {
+const matchArtistId = (pluginArtists: (ArtistSearchResult & { address: `0x${string}` })[], peers: Peers) => {
+  const votes = new Map<string, { peerConfidences: number[], artistConfidences: number[] }>()
+  for (const artist of pluginArtists) {
+    const pastVotes = votes.get(artist.id) ?? { peerConfidences: [], artistConfidences: [] }
+    pastVotes.artistConfidences.push(artist.confidence)
+    pastVotes.peerConfidences.push(peers.getConfidence(artist.address))
+    votes.set(artist.id, pastVotes)
+  }
+
+  const artistConfidences = new Map<string, number>()
+  for (const entry of votes) {
+    const [artistId, votes] = entry
+    artistConfidences.set(artistId, computeConfidence(votes.artistConfidences, votes.peerConfidences))
+  }
+
+  return artistConfidences.size ? [...artistConfidences.entries()].reduce((a, b) => b[1] > a[1] ? b : a)[0] : undefined
+}
+
+const computeConfidence = (artistConfidences: number[], peerConfidences: number[], k = 1.0): number => {
   if (peerConfidences.length === 0) return 0.5;
 
   let numerator = 0;
@@ -215,5 +206,3 @@ function computeConfidence(artistConfidences: number[], peerConfidences: number[
   const raw = numerator / denominator;
   return (raw / 2) + 0.5;
 }
-
-// TODO: merge duplicate lookup logic
