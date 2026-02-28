@@ -68,8 +68,8 @@ export interface MetadataPlugin {
   searchTrack: (query: string) => Promise<TrackSearchResult[]>
   searchArtist: (query: string) => Promise<ArtistSearchResult[]>
   searchAlbum: (query: string) => Promise<AlbumSearchResult[]>
-  lookupAlbums: (id: string) => Promise<AlbumSearchResult[]>
-  lookupTracks: (id: string) => Promise<TrackSearchResult[]>
+  lookupAlbums: (id: string, peers: Peers) => Promise<AlbumSearchResult[]>
+  lookupTracks: (id: string, peers: Peers) => Promise<TrackSearchResult[]>
 }
 
 export default class MetadataManager implements MetadataPlugin {
@@ -111,7 +111,7 @@ export default class MetadataManager implements MetadataPlugin {
     return this.merge(results, cached)
   }
 
-  async lookupAlbums(artistSoulId: string): Promise<AlbumSearchResult[]> {
+  async lookupAlbums(artistSoulId: string, peers: Peers): Promise<AlbumSearchResult[]> {
     const artists = this.db.artist.lookupBySoulId(artistSoulId)
     const artistIds = new Map<string, string>()
     const pluginResults = (await Promise.all(this.plugins.map(p => {
@@ -119,13 +119,13 @@ export default class MetadataManager implements MetadataPlugin {
       const { id } = pluginArtists.find(({address}) => address === '0x0') ?? {}
       if (id) {
         artistIds.set(p.id, id)
-        return p.lookupAlbums(id)
+        return p.lookupAlbums(id, peers)
       }
 
-      const bestId = matchArtistId(pluginArtists)
+      const bestId = matchArtistId(pluginArtists, peers)
       if (bestId) {
         artistIds.set(p.id, bestId)
-        return p.lookupAlbums(bestId)
+        return p.lookupAlbums(bestId, peers)
       }
     }))).filter(result => result !== undefined) // TODO: weight the confidence in the artist id with track/album confidence
     const results = pluginResults.flat().map(result => ({ ...result, address: '0x0' as const }))
@@ -134,7 +134,7 @@ export default class MetadataManager implements MetadataPlugin {
     return this.merge(results, cached)
   }
 
-  async lookupTracks(artistSoulId: string): Promise<TrackSearchResult[]> {
+  async lookupTracks(artistSoulId: string, peers: Peers): Promise<TrackSearchResult[]> {
     const artists = this.db.artist.lookupBySoulId(artistSoulId)
     const artistIds = new Map<string, string>()
     const pluginResults = (await Promise.all(this.plugins.map(p => {
@@ -142,13 +142,13 @@ export default class MetadataManager implements MetadataPlugin {
       const { id } = pluginArtists.find(({address}) => address === '0x0') ?? {}
       if (id) {
         artistIds.set(p.id, id)
-        return p.lookupTracks(id)
+        return p.lookupTracks(id, peers)
       }
 
-      const bestId = matchArtistId(pluginArtists)
+      const bestId = matchArtistId(pluginArtists, peers)
       if (bestId) {
         artistIds.set(p.id, bestId)
-        return p.lookupTracks(bestId)
+        return p.lookupTracks(bestId, peers)
       }
     }))).filter(result => result !== undefined) // TODO: weight the confidence in the artist id with track/album confidence
     const results = pluginResults.flat().map(result => ({ ...result, address: '0x0' as const }))
@@ -157,13 +157,13 @@ export default class MetadataManager implements MetadataPlugin {
     return this.merge(results, cached)
   }
 
-  public async handleRequest<T extends Request['type']>(request: Request & { type: T }) {
+  public async handleRequest<T extends Request['type']>(request: Request & { type: T }, peers: Peers) {
     console.log('LOG:', `[META] Searching for ${request.type}: ${request.query}`)
     if (request.type === 'track') return await this.searchTrack(request.query)
     if (request.type === 'artist') return await this.searchArtist(request.query)
     if (request.type === 'album') return await this.searchAlbum(request.query)
-    if (request.type === 'artist.albums') return await this.lookupAlbums(request.query)
-    if (request.type === 'artist.tracks') return await this.lookupTracks(request.query)
+    if (request.type === 'artist.albums') return await this.lookupAlbums(request.query, peers)
+    if (request.type === 'artist.tracks') return await this.lookupTracks(request.query, peers)
     else {
       console.warn('WARN:', 'Invalid request')
       return []

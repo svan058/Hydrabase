@@ -13,7 +13,7 @@ export default class Node {
   }
 
   public async search<T extends Request['type']>(type: T, query: string, searchPeers = true) {
-    const results = await this.metadataManager.handleRequest({ type, query }) as SearchResult[T][]
+    const results = await this.metadataManager.handleRequest({ type, query }, this.peers) as SearchResult[T][]
     if (!searchPeers) return results
 
     const hashes = new Set<bigint>()
