@@ -7,22 +7,24 @@ export class AlbumRepository {
   constructor(private readonly db: DB) {}
 
   upsertFromPlugin(result: AlbumSearchResult) {
-    this.db.insert(schema.album).values({
+    const set = {
       ...result,
       artists: result.artists.join(','),
       external_urls: JSON.stringify(result.external_urls),
       address: '0x0',
       confidence: 1,
-    }).onConflictDoNothing().run()
+    }
+    this.db.insert(schema.album).values(set).onConflictDoUpdate({ set, target: [schema.album.id, schema.album.plugin_id, schema.album.address] }).run()
   }
 
   upsertFromPeer(result: AlbumSearchResult, peerAddress: `0x${string}`) {
-    this.db.insert(schema.album).values({
+    const set = {
       ...result,
       artists: result.artists.join(','),
       external_urls: JSON.stringify(result.external_urls),
       address: peerAddress,
-    }).onConflictDoNothing().run()
+    }
+    this.db.insert(schema.album).values(set).onConflictDoUpdate({ set, target: [schema.album.id, schema.album.plugin_id, schema.album.address] }).run()
   }
 
   searchByName(query: string, includePeers = true): (AlbumSearchResult & { address: `0x${string}` })[] {

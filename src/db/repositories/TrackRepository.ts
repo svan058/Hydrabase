@@ -7,22 +7,24 @@ export class TrackRepository {
   constructor(private readonly db: DB) {}
 
   upsertFromPlugin(result: TrackSearchResult) {
-    this.db.insert(schema.track).values({
+    const set = {
       ...result,
       artists: result.artists.join(','),
       external_urls: JSON.stringify(result.external_urls),
       address: '0x0',
       confidence: 1,
-    }).onConflictDoNothing().run()
+    }
+    this.db.insert(schema.track).values(set).onConflictDoUpdate({ set, target: [schema.track.id, schema.track.plugin_id, schema.track.address] }).run()
   }
 
   upsertFromPeer(result: TrackSearchResult, peerAddress: `0x${string}`) {
-    this.db.insert(schema.track).values({
+    const set = {
       ...result,
       artists: result.artists.join(','),
       external_urls: JSON.stringify(result.external_urls),
       address: peerAddress,
-    }).onConflictDoNothing().run()
+    }
+    this.db.insert(schema.track).values(set).onConflictDoUpdate({ set, target: [schema.track.id, schema.track.plugin_id, schema.track.address] }).run()
   }
 
   searchByName(query: string, includePeers = true): (TrackSearchResult & { address: `0x${string}` })[] {

@@ -7,22 +7,24 @@ export class ArtistRepository {
   constructor(private readonly db: DB) {}
 
   upsertFromPlugin(result: ArtistSearchResult) {
-    this.db.insert(schema.artist).values({
+    const set = {
       ...result,
       genres: result.genres.join(','),
       external_urls: JSON.stringify(result.external_urls),
       address: '0x0',
       confidence: 1,
-    }).onConflictDoNothing().run()
+    }
+    this.db.insert(schema.artist).values(set).onConflictDoUpdate({ set, target: [schema.artist.id, schema.artist.plugin_id, schema.artist.address] }).run()
   }
 
   upsertFromPeer(result: ArtistSearchResult, peerAddress: `0x${string}`) {
-    this.db.insert(schema.artist).values({
+    const set = {
       ...result,
       genres: result.genres.join(','),
       external_urls: JSON.stringify(result.external_urls),
       address: peerAddress,
-    }).onConflictDoNothing().run()
+    }
+    this.db.insert(schema.artist).values(set).onConflictDoUpdate({ set, target: [schema.artist.id, schema.artist.plugin_id, schema.artist.address] }).run()
   }
 
   searchByName(query: string, includePeers = true): (ArtistSearchResult & { address: `0x${string}` })[] {
