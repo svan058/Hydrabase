@@ -76,25 +76,28 @@ export const startServer = (crypto: Crypto, port: number, peers: Peers) => {
     fetch: async (req, server) =>  {
       let address: `0x${string}` | undefined
       let hostname: `ws://${string}` | undefined
-      const res = async () => {
+      const res = async (): Promise<[number, string] | Bun.BunFile | undefined> => {
         const url = new URL(req.url);
-        if (url.pathname === "/src/main.tsx") return new Response(Bun.file(`./dist/main.js`));
-        if (url.pathname === "/dashboard/") return new Response(Bun.file(`./dashboard/index.html`));
+        if (url.pathname === "/src/main.tsx") return Bun.file(`./dist/main.js`)
+        if (url.pathname === "/dashboard/") return Bun.file(`./dashboard/index.html`)
 
         console.log('LOG:', `[SERVER] Connecting to client`)
         const headers = Object.fromEntries(req.headers.entries())
         const _address = await HIP3_CONN_Authentication.verifyServerAddress(headers, port)
-        if (_address instanceof Response) return _address
+        if (_address instanceof Response) return [_address.status, await _address.text()]
         address = _address
         const _hostname = await HIP3_CONN_Authentication.verifyServerHostname(headers, address)
-        if (_hostname instanceof Response) return _hostname
+        if (_hostname instanceof Response) return [_hostname.status, await _hostname.text()]
         hostname = _hostname
-        if (peers.has(address)) return new Response('Already connected', { status: 409 })
+        if (peers.has(address)) return [409, 'Already connected']
         const upgrade = server.upgrade(req, { data: { isOpened: false, address, hostname } })
-        return upgrade ? undefined : new Response("Upgrade failed", { status: 500 })
+        return upgrade ? undefined : [500, "Upgrade failed"]
       }
       const response = await res()
-      if (response instanceof Response) console.warn('WARN:', `[SERVER] Rejected connection with client ${[address,hostname].join(' ') ?? 'N/A'} for reason: ${await response.text()}`)
+      if (Array.isArray(response)) {
+        console.warn('WARN:', `[SERVER] Rejected connection with client ${[address,hostname].join(' ') ?? 'N/A'} for reason: ${response[1]}`)
+        return new Response(response[1], { status: response[0] })
+      } else if (response) return new Response(response)
       return response
     },
     websocket: {
