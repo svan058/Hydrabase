@@ -2,6 +2,7 @@ import z from 'zod';
 import type { Request } from '../RequestManager'
 import type { Repositories } from '../db';
 import type Peers from '../Peers';
+import { CONFIG } from '../config';
 
 export const TrackSearchResultSchema = z.object({
   soul_id: z.string(),
@@ -84,7 +85,9 @@ export default class MetadataManager implements MetadataPlugin {
   async searchTrack(query: string): Promise<TrackSearchResult[]> {
     const [cached, ...pluginResults] = await Promise.all([
       this.db.track.searchByName(query),
-      ...this.plugins.map(p => p.searchTrack(query))
+      ...this.plugins.map(async p =>
+        (await p.searchTrack(query)).map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` }))
+      )
     ])
     const results = pluginResults.flat().map(result => ({ ...result, address: '0x0' as const }))
     for (const result of results) this.db.track.upsertFromPlugin(result)
@@ -94,7 +97,9 @@ export default class MetadataManager implements MetadataPlugin {
   async searchArtist(query: string): Promise<ArtistSearchResult[]> {
     const [cached, ...pluginResults] = await Promise.all([
       this.db.artist.searchByName(query),
-      ...this.plugins.map(p => p.searchArtist(query))
+      ...this.plugins.map(async p =>
+        (await p.searchArtist(query)).map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` }))
+      )
     ])
     const results = pluginResults.flat().map(result => ({ ...result, address: '0x0' as const }))
     for (const result of results) this.db.artist.upsertFromPlugin(result)
@@ -104,7 +109,9 @@ export default class MetadataManager implements MetadataPlugin {
   async searchAlbum(query: string): Promise<AlbumSearchResult[]> {
     const [cached, ...pluginResults] = await Promise.all([
       this.db.album.searchByName(query),
-      ...this.plugins.map(p => p.searchAlbum(query))
+      ...this.plugins.map(async p =>
+        (await p.searchAlbum(query)).map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` }))
+      )
     ])
     const results = pluginResults.flat().map(result => ({ ...result, address: '0x0' as const }))
     for (const result of results) this.db.album.upsertFromPlugin(result)
@@ -125,7 +132,7 @@ export default class MetadataManager implements MetadataPlugin {
       const bestId = matchArtistId(pluginArtists, peers)
       if (bestId) {
         artistIds.set(p.id, bestId.id)
-        return (await p.lookupAlbums(bestId.id, peers)).map(album => ({ ...album, confidence: (album.confidence+bestId.confidence)/2 }))
+        return (await p.lookupAlbums(bestId.id, peers)).map(result => ({ ...result, confidence: (result.confidence+bestId.confidence)/2, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` }))
       }
     }))).filter(result => result !== undefined)
     const results = pluginResults.flat().map(result => ({ ...result, address: '0x0' as const }))
@@ -148,7 +155,7 @@ export default class MetadataManager implements MetadataPlugin {
       const bestId = matchArtistId(pluginArtists, peers)
       if (bestId) {
         artistIds.set(p.id, bestId.id)
-        return (await p.lookupTracks(bestId.id, peers)).map(track => ({ ...track, confidence: (track.confidence+bestId.confidence)/2 }))
+        return (await p.lookupTracks(bestId.id, peers)).map(result => ({ ...result, confidence: (result.confidence+bestId.confidence)/2, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` }))
       }
     }))).filter(result => result !== undefined)
     const results = pluginResults.flat().map(result => ({ ...result, address: '0x0' as const }))

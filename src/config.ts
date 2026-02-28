@@ -14,5 +14,6 @@ export const CONFIG = {
   listenAddress: '0.0.0.0', // Listen address
   serverHostname: ip,
   blacklistedIPs: ['0.0.0.0'],
-  apiKey: process.env['API_KEY'] ?? false
+  apiKey: process.env['API_KEY'] ?? false,
+  soulIdCutoff: 32
 }
