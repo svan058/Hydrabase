@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { MetadataPlugin, TrackSearchResult, ArtistSearchResult, AlbumSearchResult } from "..";
 
-const iTunesTrackSchema = z.object({
+const iTunesTrackSearchSchema = z.object({
   artistName: z.string(),
   trackName: z.string(),
   artworkUrl100: z.url(),
@@ -20,7 +20,7 @@ const iTunesArtistSchema = z.object({
   artistViewUrl: z.url().optional(),
 })
 
-const iTunesAlbumSchema = z.object({
+const iTunesAlbumSearchSchema = z.object({
   collectionId: z.number(),
   collectionName: z.string(),
   artistName: z.string(),
@@ -31,24 +31,56 @@ const iTunesAlbumSchema = z.object({
   collectionType: z.string().optional(),
 })
 
-export const iTunesSearchResponseSchema = z.object({
-  resultCount: z.number(),
-  results: z.array(iTunesTrackSchema),
+const iTunesTrackLookupSchema = z.object({
+  artistName: z.string(),
+  trackName: z.string(),
+  artworkUrl100: z.url(),
+  trackId: z.number(),
+  collectionName: z.string().optional(),
+  trackViewUrl: z.url(),
+  previewUrl: z.url().optional(),
+  trackTimeMillis: z.number().optional()
 })
 
-export const iTunesArtistSearchResponseSchema = z.object({
+const iTunesAlbumLookupSchema = z.object({
+  collectionId: z.number(),
+  collectionName: z.string(),
+  artistName: z.string(),
+  artworkUrl100: z.url().optional(),
+  collectionViewUrl: z.url().optional(),
+  releaseDate: z.string().optional(),
+  trackCount: z.number().optional(),
+  collectionType: z.string().optional(),
+})
+
+const iTunesTrackSearchResponseSchema = z.object({
+  resultCount: z.number(),
+  results: z.array(iTunesTrackSearchSchema),
+})
+
+const iTunesArtistSearchResponseSchema = z.object({
   resultCount: z.number(),
   results: z.array(iTunesArtistSchema),
 })
 
-export const iTunesAlbumSearchResponseSchema = z.object({
+const iTunesAlbumSearchResponseSchema = z.object({
   resultCount: z.number(),
-  results: z.array(iTunesAlbumSchema),
+  results: z.array(iTunesAlbumSearchSchema),
+})
+
+const iTunesTrackLookupResponseSchema = z.object({
+  resultCount: z.number(),
+  results: z.array(iTunesTrackLookupSchema),
+})
+
+const iTunesAlbumLookupResponseSchema = z.object({
+  resultCount: z.number(),
+  results: z.array(iTunesAlbumLookupSchema),
 })
 
 export default class ITunes implements MetadataPlugin {
   public readonly id = 'iTunes';
-  private baseUrl = "https://itunes.apple.com/search";
+  private baseUrl = "https://itunes.apple.com/";
 
   constructor(private country: string = "US", private limit: number = 200) {
     if (limit > 200) throw new Error('Maximum limit is 200')
@@ -63,9 +95,40 @@ export default class ITunes implements MetadataPlugin {
       limit: this.limit.toString(),
     });
 
-    const response = await fetch(`${this.baseUrl}?${params.toString()}`);
+    const response = await fetch(`${this.baseUrl}search?${params.toString()}`);
     const data = await response.json();
-    const parsed = iTunesSearchResponseSchema.safeParse(data);
+    const parsed = iTunesTrackSearchResponseSchema.safeParse(data);
+    if (!parsed.success) throw new Error(`Invalid iTunes API response: ${parsed.error}`);
+
+    return parsed.data.results.map(result => ({
+      soul_id: 'soul_', // Ignored
+      id: String(result.trackId),
+      name: result.trackName,
+      artists: [result.artistName],
+      album: result.collectionName ?? '',
+      duration_ms: result.trackTimeMillis ?? 0,
+      popularity: 0,
+      preview_url: result.previewUrl ?? '',
+      external_urls: { itunes: result.trackViewUrl },
+      image_url: result.artworkUrl100.replace('100x100', '600x600'),
+      plugin_id: this.id,
+      confidence: 1,
+    }));
+  }
+
+  async lookupTracks(id: string): Promise<TrackSearchResult[]> {
+    const params = new URLSearchParams({
+      id,
+      country: this.country,
+      media: 'music',
+      entity: 'song',
+      limit: this.limit.toString(),
+    });
+
+    const response = await fetch(`${this.baseUrl}lookup?${params.toString()}`);
+    const data = await response.json();
+    data.results = data.results.filter(result => result.wrapperType === 'track')
+    const parsed = iTunesTrackLookupResponseSchema.safeParse(data);
     if (!parsed.success) throw new Error(`Invalid iTunes API response: ${parsed.error}`);
 
     return parsed.data.results.map(result => ({
@@ -93,7 +156,7 @@ export default class ITunes implements MetadataPlugin {
       limit: this.limit.toString(),
     });
 
-    const response = await fetch(`${this.baseUrl}?${params.toString()}`);
+    const response = await fetch(`${this.baseUrl}search?${params.toString()}`);
     const data = await response.json();
     const parsed = iTunesArtistSearchResponseSchema.safeParse(data);
     if (!parsed.success) throw new Error(`Invalid iTunes API response: ${parsed.error}`);
@@ -121,9 +184,47 @@ export default class ITunes implements MetadataPlugin {
       limit: this.limit.toString(),
     });
 
-    const response = await fetch(`${this.baseUrl}?${params.toString()}`);
+    const response = await fetch(`${this.baseUrl}search?${params.toString()}`);
     const data = await response.json();
     const parsed = iTunesAlbumSearchResponseSchema.safeParse(data);
+    if (!parsed.success) throw new Error(`Invalid iTunes API response: ${parsed.error}`);
+
+    return parsed.data.results.map(result => {
+      const trackCount = result.trackCount ?? 0;
+      let albumType: string;
+      if (trackCount <= 3) albumType = 'single';
+      else if (trackCount <= 6) albumType = 'ep';
+      else albumType = 'album';
+
+      return {
+        soul_id: 'soul_', // Ignored
+        id: String(result.collectionId),
+        name: result.collectionName,
+        artists: [result.artistName],
+        release_date: result.releaseDate ?? '',
+        total_tracks: trackCount,
+        album_type: albumType,
+        image_url: result.artworkUrl100?.replace('100x100', '600x600') ?? '',
+        external_urls: result.collectionViewUrl ? { itunes: result.collectionViewUrl } : {},
+        plugin_id: this.id,
+        confidence: 1,
+      };
+    });
+  }
+
+  async lookupAlbums(id: string): Promise<AlbumSearchResult[]> {
+    const params = new URLSearchParams({
+      id,
+      country: this.country,
+      media: 'music',
+      entity: 'album',
+      limit: this.limit.toString(),
+    });
+
+    const response = await fetch(`${this.baseUrl}lookup?${params.toString()}`);
+    const data = await response.json();
+    data.results = data.results.filter(result => result.wrapperType === 'album')
+    const parsed = iTunesAlbumLookupResponseSchema.safeParse(data);
     if (!parsed.success) throw new Error(`Invalid iTunes API response: ${parsed.error}`);
 
     return parsed.data.results.map(result => {

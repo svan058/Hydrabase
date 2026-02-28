@@ -30,16 +30,6 @@ const { repos, db } = startDatabase()
 
 const metadataManager = new MetadataManager([new ITunes(), ... SPOTIFY_CLIENT_ID && SPOTIFY_CLIENT_SECRET ? [new Spotify(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET)] : []], repos)
 
-// Start Dummy Nodes
-for (let i = 1; i < 1+CONFIG.dummyNodes; i++) {
-  console.log('LOG:', `Starting dummy node ${i}`)
-  const node = new Node(CONFIG.serverPort+i, CONFIG.dhtPort+i, new Crypto(await getPrivateKey(i)), metadataManager, repos, db)
-  await new Promise(res => setTimeout(res, 5_000))
-  await node.search('track', 'dont stop me now')
-  await node.search('artist', 'jay z')
-  await node.search('album', 'made in england')
-}
-
 // Start Node
 const node = new Node(CONFIG.serverPort, CONFIG.dhtPort, new Crypto(await getPrivateKey()), metadataManager, repos, db)
 
@@ -51,7 +41,14 @@ const id = setInterval(async () => {
     return
   }
   clearInterval(id)
-  /*console.log('LOG:', 'Track results:', */await node.search('track', 'dont stop me now')//);
-  /*console.log('LOG:', 'Artist results:', */await node.search('artist', 'jay z')//);
-  /*console.log('LOG:', 'Album results:', */await node.search('album', 'made in england')//);
-}, 500)
+  const artists = await node.search('artist', 'jay z')
+  /*const track = */await node.search('track', 'dont stop me now')
+  /*const album = */await node.search('album', 'made in england')
+  // console.log('LOG:', 'Artist results:', artists)
+  // console.log('LOG:', 'Track results:', track)
+  // console.log('LOG:', 'Album results:', album)
+  if (artists[0]) {
+    await node.search('artist.tracks', artists[0].soul_id)
+    await node.search('artist.albums', artists[0].soul_id)
+  }
+}, 5_000)

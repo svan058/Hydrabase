@@ -11,18 +11,17 @@ export default class Node {
   constructor(public readonly serverPort: number, dhtPort: number, crypto: Crypto, private readonly metadataManager: MetadataManager, repos: Repositories, db: DB) {
     this.peers = new Peers(this, serverPort, dhtPort, crypto, metadataManager, repos, db)
   }
+
   public async search<T extends Request['type']>(type: T, query: string, searchPeers = true) {
-    const results = await this.metadataManager.handleRequest({ type, query }) as SearchResult[T][]
+    const results = await this.metadataManager.handleRequest({ type, query }, this.peers) as SearchResult[T][]
+    if (!searchPeers) return results
+
     const hashes = new Set<bigint>()
     const plugins = new Set<string>()
     for (const result of results) {
       hashes.add(BigInt(Bun.hash(JSON.stringify(result))))
       plugins.add(result.plugin_id)
     }
-
-    // TODO: search db
-
-    if (!searchPeers) return results
 
     const peerResults = await this.peers.requestAll({ type, query }, hashes, plugins)
 

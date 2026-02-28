@@ -12,12 +12,11 @@ import type { Request } from './RequestManager';
 import type Node from './Node';
 import { StatsReporter } from './StatsReporter';
 
-
-const parser = new Parser()
-
-parser.functions.avg = (...args: number[]) => args.reduce((sum, x) => sum + x, 0) / args.length
+const cacheFile = Bun.file('./data/ws-servers.json')
 
 const avg = (numbers: number[]) => numbers.reduce((accumulator, currentValue) => accumulator + currentValue, 0) / numbers.length
+const parser = new Parser()
+parser.functions.avg = (...args: number[]) => avg(args)
 
 export default class Peers {
   private readonly peers: { [address: `0x${string}`]: Peer } = {}
@@ -27,6 +26,11 @@ export default class Peers {
     const dht = discoverPeers(serverPort, dhtPort, peer => this.add(peer), crypto, this)
     new StatsReporter(crypto.address, metadataManager.installedPlugins, () => this.peers, db, dht)
 
+    cacheFile.exists().then(exists => {
+      if (!exists) return
+      cacheFile.json().then((hostnames: `ws://${string}`[]) => hostnames.forEach(hostname => WebSocketClient.init(crypto, hostname, `ws://${CONFIG.serverHostname}:${serverPort}`, this).then(socket => { if (socket) this.add(socket) })))
+    })
+    
     let lastCount = 0
     setInterval(() => {
       if (lastCount === this.count) return
@@ -39,6 +43,7 @@ export default class Peers {
     if (socket.address in this.peers) return socket.close()
     const peer = new Peer(this.node, socket, peer => this.add(peer), this.crypto, () => { delete this.peers[socket.address] }, this, this.repos, this.db, this.metadataManager.installedPlugins)
     this.peers[socket.address] = peer
+    cacheFile.write(JSON.stringify(Object.values(this.peers).map(peer => peer.hostname)))
     this.announce(peer)
   }
 
@@ -92,8 +97,13 @@ export default class Peers {
     return new Map<bigint, SearchResult[T]>(results.entries().map(([hash, result]) => ([hash, { ...result, confidence: avg(result.confidences) }])))
   }
 
-  public get count() {
-    
+  public get count() { 
     return Object.keys(this.peers).filter(address => address !== '0x0')?.length ?? 0
+  }
+
+  public getConfidence(address: `0x${string}`): number {
+    const peer = this.peers[address]
+    if (!peer) return 0
+    return peer.historicConfidence
   }
 }

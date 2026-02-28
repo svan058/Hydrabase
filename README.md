@@ -27,8 +27,6 @@ services:
       SERVER_PORT: 4545
       # Use `openssl rand -hex 16` to generate an api key
       # API_KEY: $API_KEY
-      # Used for testing
-      # DUMMY_NODES: 0
 ```
 
 ### Manual
@@ -51,20 +49,7 @@ bun src
 To make an API request, you need to connect to a Hydrabase node via WebSocket. Connect to `ws://ip_address:4545` with the `x-api-key` header set.
 
 ### Requests
-
 Once connected to a node, you can trigger searches by sending a message structured like so:
-```json
-{
-  "request": {
-    "type": "artist" | "track" | "album",
-    "query": "black eyed peas"
-  }
-}
-```
-
-The Hydrabase node will respond with results.
-
-You can optionally (and should) set a nonce like so:
 ```json
 {
   "request": {
@@ -75,7 +60,7 @@ You can optionally (and should) set a nonce like so:
 }
 ```
 
-This nonce can be any number, but should be unique to that request. That way when the server responds, you know which request it's for:
+Nonces are optional but recommended, they can be any number, but should be unique to that request. That way when the server responds, you know which request it's for:
 ```json
 {
   "response": [
@@ -105,7 +90,6 @@ This nonce can be any number, but should be unique to that request. That way whe
 ```
 
 ## Networking
-
 Currently Hydrabase needs 2 ports forwarded:
 ```
 TCP: 4545 (WebSocket - Used to communicate with peers)
@@ -115,38 +99,36 @@ UDP: 45454 (DHT - Used to discover peers)
 Hydrabase will automatically try to forward required ports using uPnP, but manual port forwarding is recommended. Hydrabase will not work without port forwarding enabled.
 
 ## How it Works
-
 As Hydrabase is under active development, this section will be incomplete. Here is what is currently functional:
 
 ### Peer Discovery
-
 #### DHT
-
 Hydrabase nodes connect to BitTorrent's DHT network and query it for an infohash for a torrent that doesn't exist, then announce that they're seeding it. This infohash can be anything, as long as all peers use the same one. This allows for peers to find each other without a centralised tracker or signalling server.
 
 #### Gossip Network
-
 Each time 2 Hydrabase nodes create a connection, they announce each other to all known peers. This acts as a more reliable peer discovery network, using DHT as a bootstrap network.
 
 ### Local Metadata Lookups
-
-Hydrabase nodes can run plugins. For now, only iTunes & Spotify plugins exist. These plugins expose a `search` function which is used to search external metadata providers directly for music.
+Hydrabase nodes can run plugins. For now, only iTunes & Spotify plugins exist. These plugins expose search functions which are used to search external metadata providers directly for music.
 
 ### Remote Metadata Lookups
-
 Hydrabase nodes can query their peers to lookup metadata for them. This will trigger a local lookup on the peer's end with the results relayed.
 
-### Confidence Scoring
-A score is calculated that represents your confidence/trust in a peer's response. This aims to represent the odds that a peer is lying to you. Currently, this is calculated by comparing the results for plugins you and your peer share in common. By default, a confidence score of 1 means that for all information you can verify, you have no reason to believe they're lying. While 0 means that all the results they gave you were inconsistent with what you can verify with a local lookup.
+### Identities
+Each Hydrabase has it's own public key used to identify itself. This is used to de-duplicate peers and to avoid connecting to self. The identities are also used to permanently keep track of peer reputation.
 
 ### Peer Reputation
-Historic peer responses are kept track of, like a ledger of votes. This is used to weigh votes when deciding on the "correct" response. Aka, peers that we have a longer history with are more trustworthy that newer peers.
+Historic peer responses are kept track of, like a ledger of votes. The confidence we have in this peer is calculated as a score between 0-1, 0 meaning "ive only ever seen them lie" and 1 meaning "ive only ever seen them tell the truth." This score is used to weigh votes when deciding on the "correct" response. Aka, peers that we have a longer history with are more trustworthy that newer peers.
 
-### Identities
-Each Hydrabase has it's own public key used to identify itself. This is currently used to de-duplicate peers and to avoid connecting to self. In the future identities will be used to permanently keep track of peer reputation.
+### Result Confidence
+Each API response includes a confidence score. This score represents how trustworthy that individual result is. That confidence score is derived from a series of sub-confidence scores such as peer scores.
+
+To break this down, lets say a peer with a confidence score of 0.8 votes that the track id of a song is xxxxx with 0.9 certainty, the confidence in that id is 0.72. If a later lookup that involves that ID, and that lookup from a peer with a 0.95 reputation and 0.4 confidence (0.38 score) relies on that id, the confidence in the lookup will be 0.2736.
+
+The formulas used to derive these numbers are configurable. A threshold can then be set by applications integrating Hydrabase defining minimum scores allowed for different types of information, to avoid trusting results with a 0.2736 score.
 
 ### Cache Layer
-Metadata discovered via API lookups is stored in a database. The cache layer for now is write-only, meaning songs, artists, and albums discovered via plugin lookups are cached, but this cache isn't used. In the future the cache will obviously be used. In the future the cache layer will also store peer responses so you can build up a database of metadata for songs that you normally wouldn't have access to.
+Metadata discovered via API lookups and other peers is stored in a database. When queried, Hydrabase will query your local cache, any configured plugins, and peers. When a peer receives a request, they will only search their local cache and plugins, they won't relay to other peers.
 
 ### Future Plans
 While everything listed above is working, Hydrabase is very incomplete. I scatter `TODO`s throughout the code, so if you're super curious, I've listed technical next-steps. But at a high level, most my focus is on improving the confidence scoring mechanism. The end goal is for peers running different plugins to benefit by exchanging api responses from different metadata providers.

@@ -64,7 +64,7 @@ const spotifyTokenResponseSchema = z.object({
   expires_in: z.number(),
 });
 
-export default class Spotify implements MetadataPlugin {
+export default class Spotify implements MetadataPlugin { // TODO: 
   public readonly id = "Spotify";
   private baseUrl = "https://api.spotify.com/v1/search";
   private tokenUrl = "https://accounts.spotify.com/api/token";

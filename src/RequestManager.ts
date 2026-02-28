@@ -2,7 +2,7 @@ import z from 'zod'
 import { AlbumSearchResultSchema, ArtistSearchResultSchema, TrackSearchResultSchema } from './Metadata';
 
 export const RequestSchema = z.object({
-  type: z.union([z.literal('track'), z.literal('artist'), z.literal('album')]),
+  type: z.union([z.literal('track'), z.literal('artist'), z.literal('album'), z.literal('artist.albums'), z.literal('artist.tracks')]),
   query: z.string()
 })
 export const ResponseSchema = z.union([z.array(TrackSearchResultSchema), z.array(ArtistSearchResultSchema), z.array(AlbumSearchResultSchema)])
@@ -15,6 +15,8 @@ interface MessageMap {
   track: z.infer<typeof TrackSearchResultSchema>[];
   artist: z.infer<typeof ArtistSearchResultSchema>[];
   album: z.infer<typeof AlbumSearchResultSchema>[];
+  'artist.albums': z.infer<typeof AlbumSearchResultSchema>[];
+  'artist.tracks': z.infer<typeof TrackSearchResultSchema>[];
 }
 
 export type Request = z.infer<typeof RequestSchema>
