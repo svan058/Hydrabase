@@ -12,6 +12,7 @@ import { sql } from 'drizzle-orm'
 import { Parser } from 'expr-eval'
 import { CONFIG } from "../../config";
 import type { NodeStats } from "../../StatsReporter";
+import { warn } from "../../log";
 
 const avg = (numbers: number[]) => numbers.reduce((a, b) => a + b, 0) / numbers.length
 
@@ -29,7 +30,7 @@ export class Peer {
     this.requestManager = new RequestManager()
     this.HIP2_Conn_Message = new HIP2_Conn_Message(this, this.requestManager)
     this.HIP4_Conn_Announce = new HIP4_Conn_Announce(crypto, this, addPeer, peers)
-    // console.log('LOG:', `Creating peer ${socket.address} as ${socket instanceof WebSocketClient ? 'client' : 'server'}`)
+    // log('LOG:', `Creating peer ${socket.address} as ${socket instanceof WebSocketClient ? 'client' : 'server'}`)
     this.socket.onOpen(() => {
       this.startTime = +new Date()
     })
@@ -74,7 +75,7 @@ export class Peer {
 
   private readonly handlers = {
     request: async <T extends Request['type']>(request: Request & { type: T }, nonce: number) => this.HIP2_Conn_Message.send.response(await this.node.search(request.type, request.query, this.address === '0x0') as Response<T>, nonce),
-    response: (response: Response, nonce: number) => { if (!this.requestManager.resolve(nonce, response)) console.warn('DEVWARN:', `Unexpected response nonce ${nonce} from ${this.socket.address}`) },
+    response: (response: Response, nonce: number) => { if (!this.requestManager.resolve(nonce, response)) warn('DEVWARN:', `[HIP2] Unexpected response nonce ${nonce} from ${this.socket.address}`) },
     announce: (announce: Announce) => this.HIP4_Conn_Announce.handleAnnounce(announce)
   }
 
@@ -100,7 +101,7 @@ export class Peer {
 
   send(message: string) {
     if (!this.socket.isOpened) {
-      console.warn('DEVWARN:', `[PEER] Cannot send request to unconnected peer ${this.socket.address}`)
+      warn('DEVWARN:', `[PEER] Cannot send request to unconnected peer ${this.socket.address}`)
       return []
     }
     this._tx += message.length

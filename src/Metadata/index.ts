@@ -3,6 +3,7 @@ import type { Request } from '../RequestManager'
 import type { Repositories } from '../db';
 import type Peers from '../Peers';
 import { CONFIG } from '../config';
+import { log, warn } from '../log';
 
 export const TrackSearchResultSchema = z.object({
   soul_id: z.string(),
@@ -165,14 +166,14 @@ export default class MetadataManager implements MetadataPlugin {
   }
 
   public async handleRequest<T extends Request['type']>(request: Request & { type: T }, peers: Peers) {
-    console.log('LOG:', `[META] Searching for ${request.type}: ${request.query}`)
+    log('LOG:', `[META] Searching for ${request.type}: ${request.query}`)
     if (request.type === 'track') return await this.searchTrack(request.query)
-    if (request.type === 'artist') return await this.searchArtist(request.query)
-    if (request.type === 'album') return await this.searchAlbum(request.query)
-    if (request.type === 'artist.albums') return await this.lookupAlbums(request.query, peers)
-    if (request.type === 'artist.tracks') return await this.lookupTracks(request.query, peers)
+    else if (request.type === 'artist') return await this.searchArtist(request.query)
+    else if (request.type === 'album') return await this.searchAlbum(request.query)
+    else if (request.type === 'artist.albums') return await this.lookupAlbums(request.query, peers)
+    else if (request.type === 'artist.tracks') return await this.lookupTracks(request.query, peers)
     else {
-      console.warn('DEVWARN:', 'Invalid request')
+      warn('DEVWARN:', '[HIP2] Invalid request')
       return []
     }
   }

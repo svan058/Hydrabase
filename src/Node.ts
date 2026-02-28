@@ -1,15 +1,42 @@
-import type { DB, Repositories } from './db'
-import type MetadataManager from './Metadata'
+import { startDatabase } from './db'
+import MetadataManager from './Metadata'
 import type { SearchResult } from './Metadata'
 import Peers from './Peers'
 import type { Request } from './RequestManager'
-import { Crypto } from './Crypto'
+import { Crypto, getPrivateKey } from './Crypto'
+import ITunes from './Metadata/plugins/iTunes'
+import Spotify from './Metadata/plugins/Spotify'
+import { log, warn } from './log'
 
 export default class Node {
   private readonly peers: Peers
+  private readonly metadataManager: MetadataManager
 
-  constructor(public readonly serverPort: number, dhtPort: number, crypto: Crypto, private readonly metadataManager: MetadataManager, repos: Repositories, db: DB) {
-    this.peers = new Peers(this, serverPort, dhtPort, crypto, metadataManager, repos, db)
+  private constructor(crypto: Crypto) {
+    const SPOTIFY_CLIENT_ID = process.env['SPOTIFY_CLIENT_ID']
+    const SPOTIFY_CLIENT_SECRET = process.env['SPOTIFY_CLIENT_SECRET']
+
+    const { repos, db } = startDatabase()
+    this.metadataManager = new MetadataManager([new ITunes(), ... SPOTIFY_CLIENT_ID && SPOTIFY_CLIENT_SECRET ? [new Spotify(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET)] : []], repos)
+    this.peers = new Peers(this, crypto, this.metadataManager, repos, db)
+  }
+
+  static init = async (): Promise<Node> => {
+    const node = new Node(new Crypto(await getPrivateKey()))
+
+    return new Promise<Node>(res => {
+      let i = 0
+      const id = setInterval(async () => {
+        if (node.peerCount === 0) {
+          if (i === 0) log('LOG:', '[NODE] Waiting to connect to peers')
+          if (i > 12) warn('WARN:', '[NODE] Taking a while to find peers to connect to')
+          i++
+          return
+        }
+        clearInterval(id)
+        res(node)
+      }, 5_000)
+    })
   }
 
   public async search<T extends Request['type']>(type: T, query: string, searchPeers = true) {

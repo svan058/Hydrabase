@@ -1,6 +1,7 @@
 import { CONFIG } from "../../config";
 import { AuthSchema } from "../../networking/ws/client";
 import { Crypto, Signature } from "../../Crypto";
+import { log, warn } from "../../log";
 
 type Auth =
   | { apiKey: string; signature?: undefined }
@@ -26,13 +27,13 @@ const prove = {
 const verify = {
   client: {
     address: async (hostname: `ws://${string}`) => {
-      console.log('LOG:', `[HIP3] Verifying server address ${hostname}`)
+      log('LOG:', `[HIP3] Verifying server address ${hostname}`)
       const res = await fetch(hostname.replace('ws://', 'http://') + '/auth')
       const data = await res.text()
       const auth = AuthSchema.parse(JSON.parse(data))
       const signature = Signature.fromString(auth.signature)
       if (!signature.verify(`I am ${hostname}`, auth.address)) {
-        console.warn('DEVWARN:', 'Invalid authentication from server')
+        warn('DEVWARN:', '[HIP3] Invalid authentication from server')
         return false
       }
       return auth.address
@@ -40,7 +41,7 @@ const verify = {
   },
   server: {
     address: async (headers: { [k: string]: string }, listenPort: number): Promise<`0x${string}` | Response> => {
-      console.log('LOG:', `[HIP3] Verifying client address`)
+      log('LOG:', `[HIP3] Verifying client address`)
       const {
         'x-api-key': _apiKey,
         'x-signature': _signature,
@@ -64,7 +65,7 @@ const verify = {
       return address as `0x${string}` ?? '0x0'
     },
     hostname: async (headers: { [k: string]: string }, address: `0x${string}`): Promise<Response | `ws://${string}`> => {
-      console.log('LOG:', `[HIP3] Verifying client hostname ${address}`)
+      log('LOG:', `[HIP3] Verifying client hostname ${address}`)
       if (address === '0x0') return 'ws://'
       const hostname = headers['x-hostname']
       if (!hostname) return new Response('Missing hostname header', { status: 400 })
