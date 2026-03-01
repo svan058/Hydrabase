@@ -23,6 +23,7 @@ export default class Node {
     const { db, repos } = startDatabase()
     this.metadataManager = new MetadataManager([new ITunes(), ... SPOTIFY_CLIENT_ID && SPOTIFY_CLIENT_SECRET ? [new Spotify({ clientId: SPOTIFY_CLIENT_ID, clientSecret: SPOTIFY_CLIENT_SECRET })] : []], repos)
     this.peers = new Peers(this, account, this.metadataManager, repos, db)
+    this.peers.init()
   }
 
   static readonly init = async (): Promise<Node> => {
@@ -32,8 +33,8 @@ export default class Node {
       let i = 0
       const id = setInterval(() => {
         if (node.peerCount === 0) {
-          if (i === 0) {log('LOG:', '[NODE] Waiting to connect to peers')}
-          if (i > 12) {warn('WARN:', '[NODE] Taking a while to find peers to connect to')}
+          if (i === 0) log('LOG:', '[NODE] Waiting to connect to peers')
+          if (i > 12 && i % 6 === 0) warn('WARN:', '[NODE] Taking a while to find peers to connect to')
           i++
           return
         }

@@ -62,11 +62,11 @@ const isOpened = (peer: Peer | undefined, address: `0x${string}`): boolean => pe
 
 export default class Peers {
   public get count() { 
-    return Object.keys(this.peers).filter(address => address !== '0x0')?.length ?? 0
+    return this.peerAddresses.length
   }
 
   get peerAddresses() {
-    return this.peers.keys().filter(address => address !== '0x0')
+    return [...this.peers.keys().filter(address => address !== '0x0')]
   }
   private readonly peers = new Map<`0x${string}`, Peer>()
 

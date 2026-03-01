@@ -61,7 +61,7 @@ export class DHT_Node {
     })
   }
 
-  static readonly getRoomId = () => Bun.SHA1.hash(CONFIG.dhtRoomSeed + String(Math.round(Date.now()/1000/60/60)), 'hex')
+  static readonly getRoomId = () => Bun.SHA1.hash(CONFIG.dhtRoomSeed + String(Math.round(Date.now()/1000/60/60/6)), 'hex')
 
   public readonly add = (node: DHTNode) => this.dht.addNode(node)
 
