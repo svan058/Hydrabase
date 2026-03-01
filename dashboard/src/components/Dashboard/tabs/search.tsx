@@ -1,3 +1,4 @@
+// TODO: search artist.tracks & artist.albums
 import { type JSX, useState } from "react";
 
 import type { AlbumSearchResult, ArtistSearchResult, TrackSearchResult } from "../../../../../src/Metadata";
@@ -26,19 +27,19 @@ interface SearchResultsProps {
   setSelected: React.Dispatch<React.SetStateAction<AnyResult | null>>
 }
 
-const isTrack  = (_r: AnyResult, type: Request['type']): _r is TrackSearchResult  => type === "track";
-const isAlbum  = (_r: AnyResult, type: Request['type']): _r is AlbumSearchResult  => type === "album" || type === "artist.albums";
-const isArtist = (_r: AnyResult, type: Request['type']): _r is ArtistSearchResult => type === "artist";
+const isTrack  = (_r: AnyResult, type: Request['type']): _r is TrackSearchResult  => type === "track" || type === "artist.tracks"
+const isAlbum  = (_r: AnyResult, type: Request['type']): _r is AlbumSearchResult  => type === "album" || type === "artist.albums"
+const isArtist = (_r: AnyResult, type: Request['type']): _r is ArtistSearchResult => type === "artist"
 
 const getSubtitle = (r: AnyResult, type: Request['type']): string => {
-  if (isTrack(r, type))  {return `${r.artists.join(", ")} · ${r.album}`;}
-  if (isAlbum(r, type))  {return `${r.artists.join(", ")} · ${r.release_date.slice(0, 4)} · ${r.total_tracks} tracks`;}
-  if (isArtist(r, type)) {return `${r.followers} followers · ${r.genres.join(", ")}`;}
-  return "";
+  if (isTrack(r, type)) return `${r.artists.join(", ")} · ${r.album}`
+  if (isAlbum(r, type)) return `${r.artists.join(", ")} · ${r.release_date.slice(0, 4)} · ${r.total_tracks} tracks`
+  if (isArtist(r, type)) return `${r.followers} followers · ${r.genres.join(", ")}`
+  return '';
 }
 
 const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) => {
-  if (value === undefined || value === null || value === "") {return null;}
+  if (value === undefined || value === null || value === "") return null
   return <div style={{ borderBottom: `1px solid ${BORD}`, display: "flex", gap: 10, padding: "5px 0" }}>
     <span style={{ color: MUTED, flexShrink: 0, fontSize: 11, minWidth: 120 }}>{label}</span>
     <span style={{ color: TEXT, fontSize: 12, wordBreak: "break-all" }}>{value}</span>
@@ -52,41 +53,31 @@ const DetailPanel = ({ onClose, onTogglePlay, playingId, r, type }: { onClose: (
   const previewUrl = isTrack(r, type) ? r.preview_url : undefined;
 
   return <div style={{ ...panel(), display: "flex", flexDirection: "column", gap: 12, padding: "16px 18px", position: "relative" }}>
-    {/* Header */}
     <div style={{ alignItems: "flex-start", display: "flex", gap: 14 }}>
       <img alt={r.name} height={72} src={r.image_url} style={artStyle} width={72} />
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 16, fontWeight: 700 }}>{r.name}</div>
         <div style={{ color: MUTED, fontSize: 12, marginTop: 3 }}>{getSubtitle(r, type)}</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-          {link && <button className="fbtn" onClick={() => window.open(link, "_blank", "noopener,noreferrer")} style={{ fontSize: 10 }}>
-            Open in Spotify ↗
-          </button>}
-          {previewUrl && <button className="fbtn" onClick={() => onTogglePlay(r.id, previewUrl)} style={{ fontSize: 10 }}>
-            {isPlaying ? "⏸ Pause" : "▶ Preview"}
-          </button>}
+          {link && <button className="fbtn" onClick={() => window.open(link, "_blank", "noopener,noreferrer")} style={{ fontSize: 10 }}>Open ↗</button>}
+          {previewUrl && <button className="fbtn" onClick={() => onTogglePlay(r.id, previewUrl)} style={{ fontSize: 10 }}>{isPlaying ? "⏸ Pause" : "▶ Preview"}</button>}
         </div>
       </div>
       <button className="fbtn" onClick={onClose} style={{ flexShrink: 0, fontSize: 11, padding: "3px 8px" }}>✕ Close</button>
     </div>
-
-    {/* All fields */}
     <div style={{ display: "flex", flexDirection: "column" }}>
       <DetailRow label="ID" value={r.id} />
       <DetailRow label="Name" value={r.name} />
-
-      {Object.entries(r).map(([key, val]) => (
-        <DetailRow key={key} label={key} value={val === null || val === undefined ? undefined : Array.isArray(val) ? val.join(", ") : typeof val === "object" ? JSON.stringify(val) : val} />
-      ))}
+      {Object.entries(r).map(([key, val]) => <DetailRow key={key} label={key} value={val === null || val === undefined ? undefined : Array.isArray(val) ? val.join(", ") : typeof val === "object" ? JSON.stringify(val) : val} />)}
     </div>
   </div>
 }
 
 const getColumns = (type: Request['type']) => {
-  if (type === "track") {return ["", "Name", "Soul ID", "Confidence", "Plugin ID", "Track ID", "Artists", "Album", "Duration", "Popularity", ""];}
-  if (type === "album" || type === "artist.albums") {return ["", "Name", "Soul ID", "Confidence", "Plugin ID", "Album ID", "Artists", "Release Date", "Tracks", ""];}
-  if (type === "artist") {return ["", "Name", "Soul ID", "Confidence", "Plugin ID", "Artist ID", "Genres", "Followers", "Popularity", ""];}
-  return ["", "Name", ""];
+  if (type === "track" || type === 'artist.tracks') return ["", "Name", "Soul ID", "Confidence", "Plugin ID", "Track ID", "Artists", "Album", "Duration", "Popularity", ""]
+  if (type === "album" || type === "artist.albums") return ["", "Name", "Soul ID", "Confidence", "Plugin ID", "Album ID", "Artists", "Release Date", "Tracks", ""]
+  if (type === "artist") return ["", "Name", "Soul ID", "Confidence", "Plugin ID", "Artist ID", "Genres", "Followers", "Popularity", ""]
+  return ["", "Name", ""]
 }
 
 const rawCellBase: React.CSSProperties = {
@@ -135,7 +126,6 @@ const ResultRow = ({ isPlaying, isSelected, onClick, onTogglePlay, r, type }: { 
 const SearchResults = ({ onTogglePlay, playingId, searchElapsed, searchLoading, searchResults, searchType, selected, setSelected }: SearchResultsProps): JSX.Element | undefined => {
   if (searchResults === null || searchLoading) return undefined
   if (searchResults.length === 0) return <div style={{ color: MUTED, padding: "20px 14px" }}>No results found</div>
-
   const columns = getColumns(searchType)
   return <>
     <div style={{ color: MUTED, fontSize: 11, marginBottom: 2 }}>
@@ -155,33 +145,24 @@ const SearchResults = ({ onTogglePlay, playingId, searchElapsed, searchLoading, 
 
 export const SearchTab = ({ onSearch, onTogglePlay, playingId, searchElapsed, searchError, searchLoading, searchQuery, searchResults, searchType, setSearchQuery, setSearchType }: Props) => {
   const [selected, setSelected] = useState<AnyResult | null>(null)
-
   const handleSearch = () => {
     setSelected(null)
     onSearch()
-  };
-
+  }
   return <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
     <div style={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 8 }}>
       <span style={{ color: MUTED, fontSize: 11 }}>Type:</span>
-      {(["track", "album", "artist"] as const).map((t) => <button className={`fbtn${searchType === t ? " on" : ""}`} key={t} onClick={() => { setSelected(null); setSearchType(t); }}>
-        {t.charAt(0).toUpperCase() + t.slice(1)}s
-      </button>)}
+      {(["track", "album", "artist", "artist.tracks", "artist.albums"] as const).map(t => <button className={`fbtn${searchType === t ? " on" : ""}`} key={t} onClick={() => { setSelected(null); setSearchType(t) }}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>)}
     </div>
-
     <div style={{ alignItems: "center", display: "flex", gap: 8 }}>
       <input onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} placeholder="Enter search query…" style={{ background: SURF, border: `1px solid ${BORD}`, borderRadius: 4, color: TEXT, flex: 1, fontFamily: "inherit", fontSize: 13, padding: "6px 10px" }} type="text" value={searchQuery} />
       <button className="fbtn" disabled={searchLoading} onClick={handleSearch} style={searchLoading ? { cursor: "default", opacity: 0.5 } : {}}>SEARCH →</button>
     </div>
-
     {searchLoading && <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {[1, 2, 3, 4, 5].map((i) => <div key={i} style={{ ...panel(), animation: "blink 1.2s infinite", height: 44 }} />)}
     </div>}
-
     {searchError && <div style={{ ...panel(), border: "1px solid #f85149", color: "#f85149", padding: "12px 14px" }}>{searchError}</div>}
-
     {selected && !searchLoading && <DetailPanel onClose={() => setSelected(null)} onTogglePlay={onTogglePlay} playingId={playingId} r={selected} type={searchType} />}
-
     <SearchResults onTogglePlay={onTogglePlay} playingId={playingId} searchElapsed={searchElapsed} searchLoading={searchLoading} searchResults={searchResults} searchType={searchType} selected={selected} setSelected={setSelected} />
   </div>
 }

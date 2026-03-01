@@ -1,4 +1,3 @@
-// TODO: search artist.tracks & artist.albums
 // TODO: search history
 
 import { type JSX, useCallback, useEffect, useRef, useState } from "react"

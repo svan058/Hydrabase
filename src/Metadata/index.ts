@@ -141,7 +141,7 @@ export default class MetadataManager implements MetadataPlugin {
       const { id } = pluginArtists.find(({address}) => address === '0x0') ?? {}
       if (id) {
         artistIds.set(p.id, id)
-        return p.lookupAlbums(id, peers)
+        return (await p.lookupAlbums(id, peers)).map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` }))
       }
 
       const bestId = matchArtistId(pluginArtists, peers)
@@ -165,7 +165,7 @@ export default class MetadataManager implements MetadataPlugin {
       const { id } = pluginArtists.find(({address}) => address === '0x0') ?? {}
       if (id) {
         artistIds.set(p.id, id)
-        return p.lookupTracks(id, peers)
+        return (await p.lookupTracks(id, peers)).map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` }))
       }
 
       const bestId = matchArtistId(pluginArtists, peers)
