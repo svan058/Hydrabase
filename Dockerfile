@@ -1,5 +1,12 @@
 # ---- deps stage ----
 FROM oven/bun AS deps
+
+RUN \
+    groupadd -f -g ${PGID} hydrabasegroup || true && \
+    useradd -o -u ${PUID} -g ${PGID} -m hydrabase || true
+
+USER ${PUID}:${PGID}
+
 WORKDIR /app
 
 COPY package.json bun.lock ./
@@ -19,12 +26,5 @@ EXPOSE 45454/udp
 
 ARG PUID=99
 ARG PGID=100
-
-RUN \
-    groupadd -f -g ${PGID} hydrabasegroup || true && \
-    useradd -o -u ${PUID} -g ${PGID} -m hydrabase || true && \
-    chown -R ${PUID}:${PGID} /app
-
-USER ${PUID}:${PGID}
 
 CMD bun src; sleep 3600
