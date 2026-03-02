@@ -136,6 +136,7 @@ export default class Peers {
       if (!isOpened(peer, address)) continue
       (await searchPeer(request, peer, results, installedPlugins, confirmedHashes)).entries().map(result => results.set(result[0], result[1]))
     }
+    log('LOG:', `[PEERS] Received ${results.size} results`)
     return new Map<bigint, SearchResult[T]>(results.entries().map(([hash, result]) => ([hash, { ...result, confidence: avg(result.confidences) }])))
   }
 

@@ -124,20 +124,22 @@ export default class MetadataManager implements MetadataPlugin {
 
   public async handleRequest<T extends Request['type']>(request: Request & { type: T }, peers: Peers) {
     log('LOG:', `[META] Searching for ${request.type}: ${request.query}`)
-    if (request.type === 'track') return await this.searchTrack(request.query)
-    else if (request.type === 'artist') return await this.searchArtist(request.query)
-    else if (request.type === 'album') return await this.searchAlbum(request.query)
-    else if (request.type === 'artist.albums') return await this.lookupAlbums(request.query, peers)
-    else if (request.type === 'artist.tracks') return await this.lookupTracks(request.query, peers)
-    warn('DEVWARN:', `[HIP2] Invalid request ${request.type}`)
-    return []
+    const results = request.type === 'track' ? await this.searchTrack(request.query)
+      : request.type === 'artist' ? await this.searchArtist(request.query)
+      : request.type === 'album' ? await this.searchAlbum(request.query)
+      : request.type === 'artist.albums' ? await this.lookupAlbums(request.query, peers)
+      : request.type === 'artist.tracks' ? await this.lookupTracks(request.query, peers)
+      : warn('DEVWARN:', `[HIP2] Invalid request ${request.type}`)
+    if (!results) return []
+    log('LOG:', `[META] Received ${results.length} results`)
+    return results
   }
 
   async lookupAlbums(artistSoulId: string, peers: Peers): Promise<AlbumSearchResult[]> {
     const artists = this.db.artist.lookupBySoulId(artistSoulId)
     const artistIds = new Map<string, string>()
     const pluginResults = (await Promise.all(this.plugins.map(async p => {
-      const pluginArtists = artists.filter(({ plugin_id }) => plugin_id === p.id)
+      const pluginArtists = artists.filter(({plugin_id}) => plugin_id === p.id)
       const { id } = pluginArtists.find(({address}) => address === '0x0') ?? {}
       if (id) {
         artistIds.set(p.id, id)

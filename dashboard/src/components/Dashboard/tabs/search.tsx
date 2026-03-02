@@ -1,4 +1,3 @@
-// TODO: search artist.tracks & artist.albums
 import { type JSX, useState } from "react";
 
 import type { AlbumSearchResult, ArtistSearchResult, TrackSearchResult } from "../../../../../src/Metadata";
