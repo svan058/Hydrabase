@@ -101,7 +101,6 @@ export const startServer = (account: Account, peers: Peers) => {
       const url = new URL(req.url)
       if (url.pathname === "/src/main.tsx") return new Response(Bun.file(`./dist/main.js`))
       if (url.pathname === "/dashboard/") return new Response(Bun.file(`./dashboard/index.html`))
-
       const response = await handleConnection(server, req, peers)
       if (response === undefined) return response
       const {address, hostname, res} = response
@@ -121,7 +120,7 @@ export const startServer = (account: Account, peers: Peers) => {
         if (typeof message !== 'string') return
         ws.data.conn?._handleMessage(message)
       },
-      open: (ws) => {
+      open: ws => {
         const conn = new WebSocketServerConnection(ws)
         peers.add(conn)
         ws.data = { ...ws.data, conn, isOpened: true }

@@ -1,9 +1,7 @@
 # ---- deps stage ----
 FROM oven/bun AS deps
 WORKDIR /app
-RUN chown bun:bun /app
-USER bun
-COPY --chown=bun:bun package.json bun.lock ./
+COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
 # ---- release stage ----
@@ -12,10 +10,21 @@ WORKDIR /app
 RUN chown bun:bun /app
 USER bun
 
-COPY --chown=bun:bun --from=deps /app/node_modules ./node_modules
-COPY --chown=bun:bun . .
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
 
 ENV NODE_ENV=production
+
 EXPOSE 4545/tcp
 EXPOSE 45454/udp
+
+ENV PUID=99
+ENV PGID=100
+
+RUN addgroup -g ${PGID} hydrabasegroup \
+ && adduser -D -u ${PUID} -G hydrabasegroup hydrabase \
+ && chown -R hydrabase:hydrabasegroup /app
+
+USER hydrabase
+
 CMD bun src; sleep 3600
