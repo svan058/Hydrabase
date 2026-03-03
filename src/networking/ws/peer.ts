@@ -16,6 +16,7 @@ import { type Album, type Artist, type Request, RequestManager, type Response, t
 import WebSocketClient from "./client";
 
 export interface PeerStats {
+  address: `0x${string}`
   peerPlugins: string[]
   sharedPlugins: string[]
   totalMatches: number
@@ -44,6 +45,7 @@ const collectPeerStats = (db: DB, address: `0x${string}`, installedPlugins: Meta
     }
   }
   return {
+    address,
     peerPlugins,
     sharedPlugins: peerPlugins.filter(pl => installedPluginIds.has(pl)),
     totalMatches,
@@ -136,8 +138,8 @@ export class Peer {
     announce: (announce: Announce) => this.HIP4_Conn_Announce.handleAnnounce(announce),
     peer_stats: (_data: { address: `0x${string}` }, nonce: number) => {
       if (this.address !== '0x0') return
-      const stats = collectPeerStats(this.db, _data.address, this.ownPlugins)
-      this.send(JSON.stringify({ nonce, peer_stats_response: stats }))
+      const peer_stats = collectPeerStats(this.db, _data.address, this.ownPlugins)
+      this.send(JSON.stringify({ nonce, peer_stats }))
     },
     request: async <T extends Request['type']>(request: Request & { type: T }, nonce: number) => this.HIP2_Conn_Message.send.response(await this.searchNode(request.type, request.query, this.address === '0x0'), nonce),
     response: (response: Response, nonce: number) => { if (!this.requestManager.resolve(nonce, response)) warn('DEVWARN:', `[HIP2] Unexpected response nonce ${nonce} from ${this.socket.peer.address}`)}

@@ -12,6 +12,7 @@ interface Props {
   onClose: () => void
   peer: null | PeerWithCountry
   wsRef: React.RefObject<undefined | WebSocket>
+  callback: (callback: ({ peer_stats, nonce }: { peer_stats: PeerStats, nonce: number }) => void) => void
 }
 
 const nonceRoot = Math.random()
@@ -136,26 +137,20 @@ const requestPeerStats = (peer: PeerWithCountry, ws: WebSocket, pending: React.R
   ws.send(JSON.stringify({ nonce, peer_stats: { address: peer.address } }))
 }
 
-export const PeerDetail = ({ onClose, peer, wsRef }: Props) => {
+export const PeerDetail = ({ onClose, peer, wsRef, callback }: Props) => {
   const [data, setData] = useState<null | PeerStats>(null)
   const [loading, setLoading] = useState(false)
   const [wsError, setWsError] = useState<null | string>(null)
   const nonceRef = useRef(Math.floor(nonceRoot * 90_000) + 10_000)
   const pending = useRef(new Map<number, (d: PeerStats) => void>())
-  useEffect((): (() => void) | undefined => {
-    const ws = wsRef.current
-    if (!ws) return undefined
-    const onMessage = (e: MessageEvent) => {
-      const {nonce, ...msg} = JSON.parse(e.data as string)
-      if (msg.peer_stats_response === undefined || typeof nonce !== 'number') return
-      const resolve = pending.current.get(nonce)
-      if (!resolve) return
-      pending.current.delete(nonce)
-      resolve(msg.peer_stats_response as PeerStats)
-    }
-    ws.addEventListener("message", onMessage)
-    return () => { ws.removeEventListener("message", onMessage) }
-  }, [wsRef])
+
+  const onPeerStats = ({ peer_stats, nonce }: { peer_stats: PeerStats, nonce: number }) => {
+    const resolve = pending.current.get(nonce)
+    if (!resolve) return
+    pending.current.delete(nonce)
+    resolve(peer_stats as PeerStats)
+  }
+  callback(onPeerStats)
 
   useEffect(() => {
     if (!peer) {
@@ -163,12 +158,7 @@ export const PeerDetail = ({ onClose, peer, wsRef }: Props) => {
       setWsError(null)
       return
     }
-    const ws = wsRef.current
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      setWsError("WebSocket not connected")
-      return
-    }
-    requestPeerStats(peer, ws, pending, nonceRef, setData, setLoading, setWsError)
+    if (wsRef.current) requestPeerStats(peer, wsRef.current, pending, nonceRef, setData, setLoading, setWsError)
   }, [peer, peer?.address, wsRef])
   return <Peer data={data} loading={loading} onClose={onClose} peer={peer} wsError={wsError}/>
 }

@@ -16,6 +16,7 @@ import { OverviewTab } from "./tabs/Overview"
 import { PeersTab } from "./tabs/Peers"
 import { SearchTab } from "./tabs/Search"
 import { VotesTab } from "./tabs/votes"
+import type { PeerStats } from "../../../../src/networking/ws/peer"
 
 declare const VERSION: string
 type Tab = "dht" | "logs" | "overview" | "peers" | "search" | "votes"
@@ -78,6 +79,7 @@ export const Dashboard = ({ apiKey, socket }: { apiKey: string; socket: string }
   const [sortK, setSortK] = useState<keyof ApiPeer>("status")
   const [sortD, setSortD] = useState<number>(1)
   const [filter, setFilter] = useState<FilterState>("all")
+  const onPeerStatsRef = useRef<({ peer_stats, nonce }: { peer_stats: PeerStats, nonce: number }) => void>(() => {})
   const wsRef = useRef<undefined | WebSocket>(undefined)
   const addLog = useCallback((lv: string, m: string) => { setEventLog((prev) => [...prev.slice(-199), { lv, m, t: new Date().toISOString().slice(11, 19) }]) }, [])
   const applyStats = useCallback((stats: NodeStats) => {
@@ -109,9 +111,11 @@ export const Dashboard = ({ apiKey, socket }: { apiKey: string; socket: string }
             const resolve = pendingSearches.current.get(data.nonce)
             if (resolve) { pendingSearches.current.delete(data.nonce); resolve(data.response); return }
           }
-          if (data.stats.address) applyStats(data.stats)
+          if (data.stats && data.stats.address) applyStats(data.stats)
+          else if (data.peer_stats) onPeerStatsRef.current(data)
           else addLog("DEBUG", `WS msg: ${e.data.slice(0, 80)}`)
-        } catch {
+        } catch(err) {
+          console.error(err)
           addLog("WARN", `Unparseable message: ${e.data.slice(0, 60)}`)
         }
       }
@@ -165,6 +169,7 @@ export const Dashboard = ({ apiKey, socket }: { apiKey: string; socket: string }
   const toggleSort = (k: keyof ApiPeer) => { if (sortK === k) {setSortD((d) => -d)} else { setSortK(k); setSortD(-1) } }
   const SI = ({ k }: { k: keyof ApiPeer }): JSX.Element => sortK !== k ? <span style={{ opacity: 0.2 }}>⇅</span> : sortD === 1 ? <span style={{ color: ACCENT }}>↑</span> : <span style={{ color: ACCENT }}>↓</span>
   const tLabels = Array.from({ length: 60 }, (_, i) => `${60 - i}s`).toReversed()
+  const onPeerStatsCallback = (onPeerStats: ({ peer_stats, nonce }: { peer_stats: PeerStats, nonce: number }) => void) => { onPeerStatsRef.current = onPeerStats }
   return <div style={{ background: BG, color: TEXT, fontFamily: "'JetBrains Mono','Courier New',monospace", fontSize: 13, minHeight: "100vh" }}>
     <style>{GLOBAL_STYLES}</style>
     <NavigationBar lastPoll={lastPoll} peers={peers} selfAddr={selfAddr} setTab={setTab} tab={tab} uptime={uptime} wsState={wsState} />
@@ -176,6 +181,6 @@ export const Dashboard = ({ apiKey, socket }: { apiKey: string; socket: string }
       {tab === "logs" && <LogsTab eventLog={eventLog} lastPoll={lastPoll} socket={socket} wsState={wsState} />}
       {tab === "search" && <SearchTab onSearch={doSearch} onTogglePlay={handleTogglePlay} playingId={playingId} searchElapsed={searchElapsed} searchError={searchError} searchLoading={searchLoading} searchQuery={searchQuery} searchResults={searchResults} setSearchResults={setSearchResults} searchType={searchType} setSearchQuery={setSearchQuery} setSearchType={setSearchType} />}
     </div>
-    <PeerDetail onClose={() => setSel(null)} peer={sel} wsRef={wsRef} />
+    <PeerDetail onClose={() => setSel(null)} peer={sel} wsRef={wsRef} callback={onPeerStatsCallback} />
   </div>
 }
