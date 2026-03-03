@@ -17,7 +17,7 @@ const cacheFile = Bun.file('./data/ws-servers.json')
 const avg = (numbers: number[]) => numbers.reduce((accumulator, currentValue) => accumulator + currentValue, 0) / numbers.length
 const parser = new Parser()
 parser.functions.avg = (...args: number[]) => avg(args)
-
+// TODO: move all sql.raw() to repos
 const checkPluginMatches = (peerResults: Response<Request['type']>, confirmedHashes: Set<bigint>) => {
   const pluginMatches: Record<string, { match: number, mismatch: number }> = {}
   for (const _result of peerResults) {
@@ -77,17 +77,17 @@ export default class Peers {
   constructor(private readonly account: Account, private readonly metadataManager: MetadataManager, private readonly repos: Repositories, private readonly db: DB, private readonly search: <T extends Request['type']>(type: T, query: string, searchPeers?: boolean) => Promise<Response<T>>) {
     startServer(account, this)
   }
-
+// TODO: some mechanism to proactively propagate unsolicited votes
   public add(socket: WebSocketClient | WebSocketServerConnection) {
     socket.onClose(() => this.peers.delete(socket.peer.address))
     const peer = new Peer(this.search, socket, this.account, this, this.repos, this.db, this.metadataManager.installedPlugins)
-    if (socket.peer.address in this.peers) {
+    if (this.peers.has(socket.peer.address)) {
       if (socket.peer.address !== '0x0') {
         warn('DEVWARN:', `[PEERS] Tried to connect to existing peer again via ${socket instanceof WebSocketClient ? 'client' : 'server'} ${socket.peer.address} ${socket.peer.hostname}`)
         socket.close()
       }
       return
-    }
+    } // TODO: feedback endpoints, so soulsync can force set metadata votes to 0 or 1 confidence
     this.peers.set(socket.peer.address, peer)
     cacheFile.write(JSON.stringify(Object.values(this.peers).map(peer => peer.hostname)))
     this.announce(peer)
@@ -96,7 +96,7 @@ export default class Peers {
   public getConfidence(address: `0x${string}`): number {
     const peer = this.peers.get(address)
     if (!peer) return 0
-    return peer.historicConfidence
+    return peer.historicConfidence // TODO: tit for tat
   }
 
   public readonly has = (address: `0x${string}`) => address in this.peers

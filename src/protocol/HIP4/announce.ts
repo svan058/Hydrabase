@@ -7,6 +7,7 @@ import type Peers from '../../Peers'
 import { log } from '../../log'
 import WebSocketClient from '../../networking/ws/client'
 
+// TODO: reputation endorsement - vouch for peer and get rewarded/penalised based off their activity
 export const AnnounceSchema = z.object({ hostname: z.string().startsWith('ws://').transform((val) => val as `ws://${string}`) })
 export type Announce = z.infer<typeof AnnounceSchema>
 
