@@ -131,7 +131,6 @@ export default class Peers {
 
   private announce({ hostname }: Peer) {
     for (const peerAddress of this.peerAddresses) {
-      if (Object.hasOwn(this.peers, peerAddress)) continue
       const announceTo = this.peers.get(peerAddress)
       if (!announceTo) {
         warn('DEVWARN:', `[PEERS] Peer not found ${peerAddress}`)
