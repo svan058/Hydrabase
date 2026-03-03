@@ -19,8 +19,6 @@ interface SearchResultsProps {
   searchLoading: boolean
   searchResults: null | unknown[]
   searchType: Request['type']
-  selected: null | SearchResult[keyof SearchResult]
-  setSelected: React.Dispatch<React.SetStateAction<null | SearchResult[keyof SearchResult]>>
 }
 
 const isTrack  = (_r: SearchResult[keyof SearchResult], type: Request['type']): _r is Track  => type === "track" || type === "artist.tracks" || type === 'album.tracks'
@@ -119,7 +117,7 @@ const ResultRow = ({ isPlaying, isSelected, onClick, onTogglePlay, r, type }: { 
   return <tr onClick={onClick} style={{ cursor: "pointer" }}>{cells}</tr>
 }
 
-const SearchResults = ({ onTogglePlay, playingId, searchElapsed, searchLoading, searchResults, searchType, selected, setSelected }: SearchResultsProps): JSX.Element | undefined => {
+const SearchResults = ({ onTogglePlay, playingId, searchElapsed, searchLoading, searchResults, searchType, selected, setSelected }: SearchResultsProps & { selected: null | SearchResult[keyof SearchResult], setSelected: React.Dispatch<React.SetStateAction<null | SearchResult[keyof SearchResult]>> }): JSX.Element | undefined => {
   if (searchResults === null || searchLoading) return undefined
   if (searchResults.length === 0) return <div style={{ color: MUTED, padding: "20px 14px" }}>No results found</div>
   const columns = getColumns(searchType)

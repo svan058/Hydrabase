@@ -10,7 +10,7 @@ interface Props {
   filter: FilterState;
   sel: ApiPeer | null;
   setFilter: (f: FilterState) => void;
-  setSel: (p: ApiPeer | null) => void;
+  setSel: (p: PeerWithCountry | null) => void;
   sorted: PeerWithCountry[];
 }
 

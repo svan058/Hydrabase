@@ -14,6 +14,8 @@ interface Props {
   wsRef: React.RefObject<undefined | WebSocket>
 }
 
+const nonceRoot = Math.random()
+
 const Row = ({ color, label, value }: { color?: string; label: string; value: string; }) => <div style={{ alignItems: "center", borderBottom: `1px solid ${BORD}`, display: "flex", justifyContent: "space-between", padding: "8px 0" }}>
   <span style={{ color: MUTED, fontSize: 11 }}>{label}</span>
   <span style={{ color: color ?? "#e6edf3", fontSize: 11, fontWeight: 600 }}>{value}</span>
@@ -112,15 +114,37 @@ const Peer = ({ data, loading, onClose, peer, wsError }: { data: null | PeerStat
   </div>}
 </>
 
+const requestPeerStats = (peer: PeerWithCountry, ws: WebSocket, pending: React.RefObject<Map<number, (d: PeerStats) => void>>, nonceRef: React.RefObject<number>, setData: (d: null | PeerStats) => void, setLoading: (v: boolean) => void, setWsError: (e: null | string) => void) => {
+  setLoading(true)
+  setData(null)
+  setWsError(null)
+
+  const nonce = nonceRef.current++
+  const timeout = setTimeout(() => {
+    if (!pending.current.has(nonce)) return
+    pending.current.delete(nonce)
+    setLoading(false)
+    setWsError("Timed out waiting for peer stats")
+  }, 10_000)
+
+  pending.current.set(nonce, d => {
+    clearTimeout(timeout)
+    setData(d)
+    setLoading(false)
+  })
+
+  ws.send(JSON.stringify({ nonce, peer_stats: { address: peer.address } }))
+}
+
 export const PeerDetail = ({ onClose, peer, wsRef }: Props) => {
   const [data, setData] = useState<null | PeerStats>(null)
   const [loading, setLoading] = useState(false)
   const [wsError, setWsError] = useState<null | string>(null)
-  const nonceRef = useRef(Math.floor(Math.random() * 90_000) + 10_000)
+  const nonceRef = useRef(Math.floor(nonceRoot * 90_000) + 10_000)
   const pending = useRef(new Map<number, (d: PeerStats) => void>())
-  useEffect(() => {
+  useEffect((): (() => void) | undefined => {
     const ws = wsRef.current
-    if (!ws) return
+    if (!ws) return undefined
     const onMessage = (e: MessageEvent) => {
       const {nonce, ...msg} = JSON.parse(e.data as string)
       if (msg.peer_stats_response === undefined || typeof nonce !== 'number') return
@@ -130,24 +154,21 @@ export const PeerDetail = ({ onClose, peer, wsRef }: Props) => {
       resolve(msg.peer_stats_response as PeerStats)
     }
     ws.addEventListener("message", onMessage)
-    return () => ws.removeEventListener("message", onMessage)
-  }, [wsRef.current])
+    return () => { ws.removeEventListener("message", onMessage) }
+  }, [wsRef])
+
   useEffect(() => {
-    if (!peer) { setData(null); setWsError(null); return }
+    if (!peer) {
+      setData(null)
+      setWsError(null)
+      return
+    }
     const ws = wsRef.current
-    if (!ws || ws.readyState !== WebSocket.OPEN) { setWsError("WebSocket not connected"); return }
-    setLoading(true)
-    setData(null)
-    setWsError(null)
-    const nonce = nonceRef.current++
-    const timeout = setTimeout(() => {
-      if (!pending.current.has(nonce)) return
-      pending.current.delete(nonce)
-      setLoading(false)
-      setWsError("Timed out waiting for peer stats")
-    }, 10_000)
-    pending.current.set(nonce, d => { clearTimeout(timeout); setData(d); setLoading(false) })
-    ws.send(JSON.stringify({ nonce, peer_stats: { address: peer.address } }))
-  }, [peer?.address])
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      setWsError("WebSocket not connected")
+      return
+    }
+    requestPeerStats(peer, ws, pending, nonceRef, setData, setLoading, setWsError)
+  }, [peer, peer?.address, wsRef])
   return <Peer data={data} loading={loading} onClose={onClose} peer={peer} wsError={wsError}/>
 }

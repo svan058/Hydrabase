@@ -25,6 +25,7 @@ export class HIP2_Conn_Message {
       log(`[HIP2] Sending request ${nonce} to peer ${this.peer.address}`)
       this.peer.send(JSON.stringify({ nonce, request }))
       const results = await promise
+      if (!results) return []
       log(`[HIP2] Received ${results.length} results from ${this.peer.address}`)
       return results
     },

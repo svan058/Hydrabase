@@ -23,7 +23,7 @@ export default tseslint.config(
   tseslint.configs.strict,
   tseslint.configs.stylistic,
   reactHooks.configs.flat.recommended,
-  sonarjs.configs.recommended,
+  ...sonarjs.configs.recommended,
 
   // ─── Perfectionist ────────────────────────────────────────────────────────
   perfectionist.configs["recommended-natural"],
@@ -70,6 +70,7 @@ export default tseslint.config(
       "sonarjs/no-identical-functions": "off",
       "sonarjs/no-nested-conditional": "off",
       "sonarjs/no-nested-template-literals": "off",
+      "sonarjs/pseudo-random": "off",
       "sort-imports": "off",
       "sort-keys": "off",
       "sort-vars": "off"

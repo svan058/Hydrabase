@@ -18,7 +18,7 @@ type Props = TableProps & {
 interface TableProps {
   peers: PeerWithCountry[]
   sel: ApiPeer | null
-  setSel: (p: ApiPeer | null) => void
+  setSel: (p: PeerWithCountry | null) => void
   SI: ({ k }: { k: keyof ApiPeer }) => JSX.Element
   toggleSort: (k: keyof ApiPeer) => void
 }

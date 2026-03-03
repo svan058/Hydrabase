@@ -1,5 +1,6 @@
 import z from 'zod'
 
+import { warn } from './log';
 import { AlbumSearchResultSchema, ArtistSearchResultSchema, TrackSearchResultSchema } from './Metadata';
 
 export const RequestSchema = z.object({
@@ -23,8 +24,7 @@ export interface SearchResult {
 export type Track = z.infer<typeof TrackSearchResultSchema>
 
 interface PendingRequest<T extends Request['type']> {
-  reject: (reason: Error) => void
-  resolve: (value: Response<T>) => void
+  resolve: (value: false | Response<T>) => void
   startedAt: number
   timeout: ReturnType<typeof setTimeout>
 }
@@ -44,22 +44,21 @@ export class RequestManager {
   public close(reason = 'Connection closed'): void {
     for (const [nonce, pending] of this.pending) {
       clearTimeout(pending.timeout)
-      pending.reject(new Error(`${reason} (nonce: ${nonce})`))
+      pending.resolve(warn('WARN:', `[REQUEST] Request ${nonce} failed: ${reason}`))
     }
     this.pending.clear()
   }
 
-  public register<T extends Request['type']>(): { nonce: number; promise: Promise<Response<T>> } {
+  public register<T extends Request['type']>(): { nonce: number; promise: Promise<false | Response<T>> } {
     const nonce = ++this.nonce
 
-    const promise = new Promise<Response<T>>((resolve, reject) => {
+    const promise = new Promise<false | Response<T>>(resolve => {
       const timeout = setTimeout(() => {
         this.pending.delete(nonce)
-        reject(new Error(`Request timed out (nonce: ${nonce})`))
+        resolve(warn('WARN:', `[REQUEST] Request ${nonce} timed out`))
       }, this.timeoutMs)
 
       this.pending.set(nonce, {
-        reject,
         resolve: resolve as PendingRequest<Request['type']>['resolve'],
         startedAt: Date.now(),
         timeout,
