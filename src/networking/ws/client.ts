@@ -41,7 +41,7 @@ export default class WebSocketClient {
 
   static readonly init = async (peers: Peers, account: Account, hostname: `ws://${string}`) => {
     const address = await HIP3_CONN_Authentication.verifyClientAddress(hostname)
-    if (!address) return warn('DEVWARN:', `[CLIENT] Server address authentication failed ${hostname}`)
+    if (!address) return address
     if (peers.has(address)) return warn('DEVWARN:', `[CLIENT] Already connected/connecting to peer ${address}`)
     if (address === account.address) return warn('DEVWARN:', `[CLIENT] Not connecting to self`)
     return new WebSocketClient(account, { address, hostname }, peers)

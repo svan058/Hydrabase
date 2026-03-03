@@ -52,7 +52,7 @@ export const Dashboard = ({ apiKey, socket }: { apiKey: string; socket: string }
   const [wsState, setWsState] = useState<WsState>("connecting")
   const [lastPoll, setLastPoll] = useState<Date | null>(null)
   const [peers, setPeers] = useState<PeerWithCountry[]>([])
-  const [selfAddr, setSelfAddr] = useState<string>("—")
+  const [selfAddr, setSelfAddr] = useState<`0x${string}`>('0x0')
   const [votes, setVotes] = useState<VoteCounts>({ albums: 0, artists: 0, tracks: 0 })
   const [peerData, setPeerData] = useState<VoteCounts>({ albums: 0, artists: 0, tracks: 0 })
   const [dhtNodes, setDhtNodes] = useState<{ country: string; host: string }[]>([])
@@ -63,7 +63,7 @@ export const Dashboard = ({ apiKey, socket }: { apiKey: string; socket: string }
   const [uptime, setUptime] = useState<number>(0)
   // Search state
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchType, setSearchType] = useState<"album" | "artist" | "track">("track")
+  const [searchType, setSearchType] = useState<"artist" | "album" | "track" | "artist.albums" | 'artist.tracks' | 'album.tracks'>("artist")
   const [searchResults, setSearchResults] = useState<null | unknown[]>(null)
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchError, setSearchError] = useState<null | string>(null)
@@ -74,7 +74,7 @@ export const Dashboard = ({ apiKey, socket }: { apiKey: string; socket: string }
   const nonceRef = useRef(Math.floor(Math.random() * 90_000) + 10_000)
   // Peers / nav state
   const [tab, setTab] = useState<Tab>("overview")
-  const [sel, setSel] = useState<ApiPeer | null>(null)
+  const [sel, setSel] = useState<PeerWithCountry | null>(null)
   const [sortK, setSortK] = useState<keyof ApiPeer>("status")
   const [sortD, setSortD] = useState<number>(1)
   const [filter, setFilter] = useState<FilterState>("all")
@@ -169,7 +169,7 @@ export const Dashboard = ({ apiKey, socket }: { apiKey: string; socket: string }
     <style>{GLOBAL_STYLES}</style>
     <NavigationBar lastPoll={lastPoll} peers={peers} selfAddr={selfAddr} setTab={setTab} tab={tab} uptime={uptime} wsState={wsState} />
     <div style={{ animation: "fadein .3s ease", padding: "14px 16px" }}>
-      {tab === "overview" && <OverviewTab dhtNodes={dhtNodes} peers={peers} sel={sel} setSel={setSel} SI={SI} sortD={sortD} sortK={sortK} toggleSort={toggleSort} votes={votes} />}
+      {tab === "overview" && <OverviewTab dhtNodes={dhtNodes} peers={peers} sel={sel} setSel={setSel} SI={SI} toggleSort={toggleSort} votes={votes} />}
       {tab === "peers" && <PeersTab filter={filter} sel={sel} setFilter={setFilter} setSel={setSel} sorted={sortPeers(peers, filter, sortD, sortK)} />}
       {tab === "dht" && <DhtTab dhtNodeCounts={dhtNodeCounts} dhtNodes={dhtNodes} socket={socket} tLabels={tLabels} wsState={wsState} />}
       {tab === "votes" && <VotesTab installedPlugins={installedPlugins} knownPlugins={knownPlugins} peerData={peerData} peers={peers} votes={votes} />}
