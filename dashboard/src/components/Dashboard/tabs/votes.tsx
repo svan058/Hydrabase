@@ -13,9 +13,9 @@ interface Props {
 
 const Header = ({ peerData, votes }: { peerData: VoteCounts, votes: VoteCounts }) => {
   const rows = [
-    ["Tracks",  votes.tracks,  peerData.tracks,  "#bc8cff"],
-    ["Albums",  votes.albums,  peerData.albums,  "#56d364"],
-    ["Artists", votes.artists, peerData.artists, "#ff9bce"],
+    ["Tracks", votes.tracks, votes.tracks+peerData.tracks, "#bc8cff"],
+    ["Albums", votes.albums, votes.albums+peerData.albums, "#56d364"],
+    ["Artists", votes.artists, votes.artists+peerData.artists, "#ff9bce"],
   ] as const;
 
   return <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
@@ -40,40 +40,43 @@ const Header = ({ peerData, votes }: { peerData: VoteCounts, votes: VoteCounts }
   </div>
 }
 
-export const VotesTab = ({ installedPlugins, knownPlugins, peerData, peers, votes }: Props) => <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-  <Header peerData={peerData} votes={votes} />
-  <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
-    <div style={panel()}>
-      <PanelHeader label="Plugins" />
-      <div style={{ padding: "10px 0" }}>
-        {knownPlugins.map((pl) => {
-          const on = installedPlugins.includes(pl);
-          return <div key={pl} style={{ alignItems: "center", borderBottom: `1px solid ${BORD}`, display: "flex", justifyContent: "space-between", padding: "10px 16px" }}>
-            <div>
-              <div style={{ fontWeight: 700, marginBottom: 2 }}>{pl}</div>
-              <div style={{ color: MUTED, fontSize: 10 }}>{on ? "Installed" : "Not installed"}</div>
+export const VotesTab = ({ installedPlugins, knownPlugins, peerData, peers, votes }: Props) => {
+  const onlinePeerCount = peers.filter(peer => peer.uptime !== 0).length
+  return <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <Header peerData={peerData} votes={votes} />
+    <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
+      <div style={panel()}>
+        <PanelHeader label="Plugins" />
+        <div style={{ padding: "10px 0" }}>
+          {knownPlugins.map((pl) => {
+            const on = installedPlugins.includes(pl);
+            return <div key={pl} style={{ alignItems: "center", borderBottom: `1px solid ${BORD}`, display: "flex", justifyContent: "space-between", padding: "10px 16px" }}>
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 2 }}>{pl}</div>
+                <div style={{ color: MUTED, fontSize: 10 }}>{on ? "Installed" : "Not installed"}</div>
+              </div>
+              <span style={{ background: on ? "rgba(63,185,80,.1)" : "rgba(248,81,73,.1)", border: `1px solid ${on ? "#3fb95044" : "#f8514944"}`, borderRadius: 4, color: on ? "#3fb950" : "#f85149", fontSize: 10, padding: "3px 10px" }}>{on ? "ACTIVE" : "INACTIVE"}</span>
             </div>
-            <span style={{ background: on ? "rgba(63,185,80,.1)" : "rgba(248,81,73,.1)", border: `1px solid ${on ? "#3fb95044" : "#f8514944"}`, borderRadius: 4, color: on ? "#3fb950" : "#f85149", fontSize: 10, padding: "3px 10px" }}>{on ? "ACTIVE" : "INACTIVE"}</span>
-          </div>
-        })}
+          })}
+        </div>
       </div>
-    </div>
-    <div style={panel()}>
-      <PanelHeader label="Plugin Coverage Across Peers" />
-      <div style={{ padding: "12px 16px" }}>
-        {knownPlugins.map((pl) => {
-          const n = peers.filter((p) => p.plugins.includes(pl)).length;
-          return <div key={pl} style={{ marginBottom: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-              <span style={{ fontSize: 12 }}>{pl}</span>
-              <span style={{ color: MUTED, fontSize: 11 }}>{n}/{peers.length} peers</span>
+      <div style={panel()}>
+        <PanelHeader label="Plugin Coverage" />
+        <div style={{ padding: "12px 16px" }}>
+          {knownPlugins.map((pl) => {
+            const n = peers.filter((p) => p.plugins.includes(pl)).length;
+            return <div key={pl} style={{ marginBottom: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                <span style={{ fontSize: 12 }}>{pl}</span>
+                <span style={{ color: MUTED, fontSize: 11 }}>{n}/{onlinePeerCount} peers</span>
+              </div>
+              <div style={{ background: "#21262d", borderRadius: 3, height: 5, overflow: "hidden" }}>
+                <div style={{ background: ACCENT, borderRadius: 3, height: "100%", width: `${onlinePeerCount > 0 ? (n / onlinePeerCount) * 100 : 0}%` }} />
+              </div>
             </div>
-            <div style={{ background: "#21262d", borderRadius: 3, height: 5, overflow: "hidden" }}>
-              <div style={{ background: ACCENT, borderRadius: 3, height: "100%", width: `${peers.length > 0 ? (n / peers.length) * 100 : 0}%` }} />
-            </div>
-          </div>
-        })}
+          })}
+        </div>
       </div>
     </div>
   </div>
-</div>
+}
