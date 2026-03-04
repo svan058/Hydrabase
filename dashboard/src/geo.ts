@@ -35,10 +35,11 @@ export const enrichPeers = (apiPeers: ApiPeer[] = [], knownPeers: `0x${string}`[
       plugins: apiPeer?.plugins ?? [],
       port,
       rxTotal: apiPeer?.rxTotal ?? 0,
-      status: apiPeer?.status ?? "disconnected",
+      status: apiPeer?.status ?? 'disconnected',
       txTotal: apiPeer?.txTotal ?? 0,
       uptime: apiPeer?.uptime ?? 0,
-      username: apiPeer?.username ?? 'Anonymous'
+      username: apiPeer?.username ?? 'Anonymous',
+      userAgent: apiPeer?.userAgent ?? 'Hydrabase/Unknown'
     }
   }))
 }

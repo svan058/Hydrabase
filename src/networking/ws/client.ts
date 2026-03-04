@@ -6,20 +6,17 @@ import type Peers from '../../Peers'
 import { log, warn } from '../../log'
 import { HIP3_CONN_Authentication } from '../../protocol/HIP3/authentication'
 
-export interface Self {
-  account: Account
-  hostname: `ws://${string}`
-}
 interface Peer {
   address: `0x${string}`
   hostname: `ws://${string}`
   username: string
+  userAgent: string
 }
 
 export const AuthSchema = z.object({
   address: z.string().regex(/^0x/iu, { message: "Address must start with 0x" }).transform(val => val as `0x${string}`),
   username: z.string().default('Anonymous'),
-  userAgent: z.string().default('N/A'),
+  userAgent: z.string().default('Hydrabase/Unknown'),
   signature: z.string(),
 })
 
@@ -45,10 +42,10 @@ export default class WebSocketClient {
   static readonly init = async (peers: Peers, account: Account, hostname: `ws://${string}`) => {
     const result = await HIP3_CONN_Authentication.verifyServerFromClient(hostname)
     if (!result) return result
-    const { address, username } = result
+    const { address, username, userAgent } = result
     if (peers.has(address)) return warn('DEVWARN:', `[CLIENT] Already connected/connecting to peer ${username} ${address}`)
     if (address === account.address) return warn('DEVWARN:', `[CLIENT] Not connecting to self`)
-    return new WebSocketClient(account, { address, hostname, username }, peers)
+    return new WebSocketClient(account, { address, hostname, username, userAgent }, peers)
   }
 
   public readonly close = () => {
@@ -94,7 +91,7 @@ export default class WebSocketClient {
     })
 
     this.socket.addEventListener('error', err => {
-      warn('DEVWARN:', `[CLIENT] Connection failed with server ${this.peer.username} ${this.peer.hostname} ${this.peer.address}`, err)
+      warn('DEVWARN:', `[CLIENT] Connection failed with server ${this.peer.username} ${this.peer.hostname} ${this.peer.address} - ${error.message}`)
       this._isOpened = false
       for (const handler of this.closeHandlers) handler()
     })

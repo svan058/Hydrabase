@@ -124,6 +124,10 @@ export class Peer {
     return this.socket.peer.username
   }
 
+  get userAgent() {
+    return this.socket.peer.userAgent
+  }
+
   private _rx = 0
 
   private _tx = 0

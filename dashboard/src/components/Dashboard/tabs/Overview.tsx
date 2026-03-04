@@ -24,13 +24,14 @@ interface TableProps {
 }
 
 const PEER_HEADER: [keyof ApiPeer, string][] = [
-  ["status",     "Status"],
-  ["username",    "Username"],
-  ["address",    "Address"],
-  ["hostname",   "Host"],
-  ["latency",    "Latency"],
-  ["rxTotal",    "↓ RX"],
-  ["txTotal",    "↑ TX"],
+  ["status", "Status"],
+  ["username", "Username"],
+  ["address", "Address"],
+  ["hostname", "Host"],
+  ["userAgent", "User Agent"],
+  ["latency", "Latency"],
+  ["rxTotal", "↓ RX"],
+  ["txTotal", "↑ TX"],
   ["confidence", "Conf"],
 ]
 
@@ -41,8 +42,7 @@ const Table = ({ peers, sel, setSel, SI, toggleSort }: TableProps) => <table sty
     </tr>
   </thead>
   <tbody>
-    {peers.map((p) => <tr className="rh" key={p.address} onClick={() => setSel(sel?.address === p.address ? null : p)}
-      style={{ background: sel?.address === p.address ? "rgba(88,166,255,.05)" : "transparent", borderTop: `1px solid ${BORD}`, cursor: "pointer" }}>
+    {peers.map(p => <tr className="rh" key={p.address} onClick={() => setSel(sel?.address === p.address ? null : p)} style={{ background: sel?.address === p.address ? "rgba(88,166,255,.05)" : "transparent", borderTop: `1px solid ${BORD}`, cursor: "pointer" }}>
       <td style={{ padding: "8px 12px", whiteSpace: "nowrap" }}>
         <StatusDot status={p.status} />
         <span style={{ color: p.status === "connected" ? "#3fb950" : "#f85149", fontSize: 10 }}>{p.status}</span>
@@ -50,6 +50,7 @@ const Table = ({ peers, sel, setSel, SI, toggleSort }: TableProps) => <table sty
       <td style={{ color: MUTED, fontSize: 10, padding: "8px 12px" }}>{p.username}</td>
       <td style={{ color: MUTED, fontSize: 10, padding: "8px 12px" }}>{shortAddr(p.address)}</td>
       <td style={{ color: MUTED, fontSize: 11, padding: "8px 12px" }}>{toEmoji(p.country)} {p.hostname}</td>
+      <td style={{ color: MUTED, fontSize: 11, padding: "8px 12px" }}>{p.userAgent}</td>
       <td style={{ color: p.latency ? latColor(p.latency) : MUTED, padding: "8px 12px" }}>{p.latency ? `${Math.round(p.latency * 10) / 10}ms` : "—"}</td>
       <td style={{ color: ACCENT, padding: "8px 12px" }}>{fmtBytes(p.rxTotal)}</td>
       <td style={{ color: "#f0883e", padding: "8px 12px" }}>{fmtBytes(p.txTotal)}</td>

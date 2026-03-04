@@ -29,7 +29,8 @@ export class WebSocketServerConnection {
     return {
       address: this.socket.data.address,
       hostname: this.socket.data.hostname,
-      username: this.socket.data.username
+      username: this.socket.data.username,
+      userAgent: this.socket.data.userAgent
     }
   }
 
