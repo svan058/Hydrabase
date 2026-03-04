@@ -44,11 +44,10 @@ const verifyAuth = (auth: Auth | undefined, address: string | undefined): [numbe
 const verify = {
   serverFromClient: (hostname: `ws://${string}`) => new Promise<{ address: `0x${string}`, username: string, userAgent: string } | false>(resolve => {
     log(`[HIP3] Verifying server address ${hostname}`)
-    const authUrl = `${hostname.replace('ws://', 'http://')}/auth`
-    fetch(authUrl).then(async response => {
+    fetch(`${hostname.replace('ws://', 'http://')}/auth`).then(async response => {
       const auth = AuthSchema.parse(JSON.parse(await response.text()))
       return resolve(Signature.fromString(auth.signature).verify(`I am ${hostname}`, auth.address) ? { address: auth.address, username: auth.username, userAgent: auth["userAgent"] } : warn('DEVWARN:', "[HIP3] Invalid authentication from client's server"))
-    }).catch((error: Error) => resolve(warn('WARN:', `[HIP3] Failed to authenticate server ${authUrl}`, `- ${error.name} ${error.message}`)))
+    }).catch((error: Error) => resolve(warn('WARN:', `[HIP3] Failed to authenticate server ${hostname}`, `- ${error.name} ${error.message}`)))
   }),
   clientFromServer: async (headers: Record<string, string>): Promise<{ address: `0x${string}`,  hostname: `ws://${string}`, username: string, userAgent: string } | [number, string]> => {
     const { 'sec-websocket-protocol': protocol, 'x-address': unverifiedAddress, 'x-api-key': _unverifiedApiKey, 'x-signature': _unverifiedSignature, 'x-hostname': unverifiedHostname } = headers

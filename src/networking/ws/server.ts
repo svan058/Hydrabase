@@ -67,7 +67,7 @@ export class WebSocketServerConnection {
   }
 }
 
-const handleConnection = async (server: Bun.Server<WebSocketData>, req: Request): Promise<undefined | { address?: `0x${string}`, hostname?: `ws://${string}`; res: [number, string], }> => {
+const handleConnection = async (server: Bun.Server<WebSocketData>, req: Request): Promise<undefined | { address?: `0x${string}`, hostname?: `ws://${string}`, res: [number, string] }> => {
   log(`[SERVER] Connecting to client`)
   const headers = Object.fromEntries(req.headers.entries())
   const peer = await HIP3_CONN_Authentication.verifyClientFromServer(headers)
