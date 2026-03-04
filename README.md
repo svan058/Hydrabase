@@ -56,7 +56,7 @@ TCP: 4545 (WebSocket - Used to communicate with peers)
 UDP: 4545 (DHT - Used to discover peers)
 ```
 
-Hydrabase will automatically try to port forward using uPnP, and DHT doesn't require port forwarding. For best connectability, I recommend port forwarding both manually. However technically, only TCP is required for Hydrabase to work, though performance may be worse without UDP port forwarded.
+Hydrabase will automatically try to port forward using uPnP.For best connectability, I recommend manually port forwarding both. However technically, only TCP is required for Hydrabase to work, though performance may be worse without UDP port forwarded.
 
 ## API Documentation
 
