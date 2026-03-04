@@ -91,7 +91,7 @@ export default class WebSocketClient {
     })
 
     this.socket.addEventListener('error', err => {
-      warn('DEVWARN:', `[CLIENT] Connection failed with server ${this.peer.username} ${this.peer.hostname} ${this.peer.address} - ${error.message}`)
+      warn('DEVWARN:', `[CLIENT] Connection failed with server ${this.peer.username} ${this.peer.hostname} ${this.peer.address} - ${err.message}`)
       this._isOpened = false
       for (const handler of this.closeHandlers) handler()
     })
