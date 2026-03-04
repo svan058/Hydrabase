@@ -7,6 +7,7 @@ import { toEmoji } from "../geo";
 import { ACCENT, BG, BORD, confColor, latColor, MUTED, SURF } from "../theme";
 import { fmtBytes, fmtUptime, shortAddr } from "../utils";
 import { StatusDot } from "./StatusDot";
+import { Identicon } from "./Identicon";
 
 interface Props {
   onClose: () => void
@@ -44,6 +45,7 @@ const Header = ({ onClose, peer }: { onClose: () => void; peer: PeerWithCountry 
   }
   return <div style={{ background: BG, borderBottom: `1px solid ${BORD}`, padding: "16px 20px" }}>
     <div style={{ alignItems: "flex-start", display: "flex", gap: 12, justifyContent: "space-between", marginBottom: 12 }}>
+      <Identicon address={peer.address} size={40} style={{ borderRadius: 6, marginTop: 2 }} />
       <div style={{ minWidth: 0 }}>
         <div style={{ alignItems: "center", display: "flex", gap: 8, marginBottom: 4 }}>
           <StatusDot status={peer.status} />

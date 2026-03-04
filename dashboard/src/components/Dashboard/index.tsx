@@ -6,41 +6,17 @@ import type { ApiPeer, NodeStats } from "../../../../src/StatsReporter"
 import type { EventEntry, FilterState, PeerWithCountry, VoteCounts, WsState } from "../../types"
 
 import { enrichPeers, getCountry } from "../../geo"
-import { ACCENT, BG, BORD, GLOBAL_STYLES, MUTED, TEXT } from "../../theme"
-import { fmtBytes, fmtClock, shortAddr } from "../../utils"
+import { ACCENT, BG, GLOBAL_STYLES, TEXT } from "../../theme"
 import { PeerDetail } from "../PeerDetail"
-import { SocketStatus } from "../SocketStatus"
 import { DhtTab } from "./tabs/dht"
-import { LogsTab } from "./tabs/Logs"
 import { OverviewTab } from "./tabs/Overview"
 import { PeersTab } from "./tabs/Peers"
 import { SearchTab } from "./tabs/Search"
 import { VotesTab } from "./tabs/votes"
 import type { PeerStats } from "../../../../src/networking/ws/peer"
-
-declare const VERSION: string
-type Tab = "dht" | "logs" | "overview" | "peers" | "search" | "votes"
-const NavigationBar = ({ lastPoll, peers, selfAddr, setTab, tab, uptime, wsState }: { lastPoll: Date | null, peers: PeerWithCountry[]; selfAddr: `0x${string}`; setTab: React.Dispatch<React.SetStateAction<Tab>>, tab: Tab, uptime: number, wsState: WsState, }) => {
-  const totalRx = peers.reduce((a, p) => a + p.rxTotal, 0)
-  const totalTx = peers.reduce((a, p) => a + p.txTotal, 0)
-  return <div style={{ alignItems: "center", background: "#010409", borderBottom: `1px solid ${BORD}`, display: "flex", height: 46, justifyContent: "space-between", padding: "0 16px", position: "sticky", top: 0, zIndex: 49 }}>
-    <div style={{ alignItems: "center", display: "flex", gap: 0 }}>
-      <div style={{ alignItems: "center", display: "flex", gap: 8, marginRight: 20 }}>
-        <SocketStatus state={wsState} />
-        <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: ".06em" }}>HYDRABASE</span>
-        <span style={{ background: "#21262d", border: `1px solid ${BORD}`, borderRadius: 3, color: MUTED, fontSize: 9, letterSpacing: ".05em", padding: "1px 5px" }}>NODE v{VERSION}</span>
-      </div>
-      {(["overview", "peers", "dht", "votes", "logs", "search"] as const).map((t) => <button className={`tab${tab === t ? " on" : ""}`} key={t} onClick={() => setTab(t)}>{t.toUpperCase()}</button>)}
-    </div>
-    <div style={{ alignItems: "center", display: "flex", fontSize: 11, gap: 18 }}>
-      {lastPoll && <span style={{ color: MUTED }}>last poll: {`${Math.round((Date.now() - Number(lastPoll)) / 1000)}s ago`}</span>}
-      <span style={{ color: MUTED }}>⏱ {fmtClock(uptime)}</span>
-      <span style={{ color: "#3fb950" }}>↓ {fmtBytes(totalRx)}</span>
-      <span style={{ color: "#f0883e" }}>↑ {fmtBytes(totalTx)}</span>
-      <span style={{ color: MUTED, fontSize: 10 }}>{shortAddr(selfAddr)}</span>
-    </div>
-  </div>
-}
+import { Sidebar, type Tab } from "../SideBar"
+import { StatusBar } from "../StatusBar"
+import { ActivityFeed } from "../ActivityFeed"
 
 const sortPeers = (peers: PeerWithCountry[], filter: FilterState, sortD: number, sortK: keyof ApiPeer) => [...peers].filter((p) => filter === "all" || p.status === filter).sort((a, b) => {
   const av = a[sortK] as unknown as number | string | undefined
@@ -170,17 +146,18 @@ export const Dashboard = ({ apiKey, socket }: { apiKey: string; socket: string }
   const SI = ({ k }: { k: keyof ApiPeer }): JSX.Element => sortK !== k ? <span style={{ opacity: 0.2 }}>⇅</span> : sortD === 1 ? <span style={{ color: ACCENT }}>↑</span> : <span style={{ color: ACCENT }}>↓</span>
   const tLabels = Array.from({ length: 60 }, (_, i) => `${60 - i}s`).toReversed()
   const onPeerStatsCallback = (onPeerStats: ({ peer_stats, nonce }: { peer_stats: PeerStats, nonce: number }) => void) => { onPeerStatsRef.current = onPeerStats }
-  return <div style={{ background: BG, color: TEXT, fontFamily: "'JetBrains Mono','Courier New',monospace", fontSize: 13, minHeight: "100vh" }}>
+  return <div style={{ background: BG, color: TEXT, display: "flex", fontFamily: "'JetBrains Mono','Courier New',monospace", fontSize: 13, minHeight: "100vh" }}>
     <style>{GLOBAL_STYLES}</style>
-    <NavigationBar lastPoll={lastPoll} peers={peers} selfAddr={selfAddr} setTab={setTab} tab={tab} uptime={uptime} wsState={wsState} />
-    <div style={{ animation: "fadein .3s ease", padding: "14px 16px" }}>
-      {tab === "overview" && <OverviewTab dhtNodes={dhtNodes} peers={peers} sel={sel} setSel={setSel} SI={SI} toggleSort={toggleSort} votes={votes} />}
+    <Sidebar peers={peers} selfAddr={selfAddr} setTab={setTab} tab={tab} uptime={uptime} />
+    <div style={{ animation: "fadein .3s ease", flex: 1, minWidth: 0, padding: "14px 16px 70px" }}>
+      {tab === "overview" && <OverviewTab peers={peers} sel={sel} setSel={setSel} SI={SI} toggleSort={toggleSort} votes={votes} />}
       {tab === "peers" && <PeersTab filter={filter} sel={sel} setFilter={setFilter} setSel={setSel} sorted={sortPeers(peers, filter, sortD, sortK)} />}
       {tab === "dht" && <DhtTab dhtNodeCounts={dhtNodeCounts} dhtNodes={dhtNodes} socket={socket} tLabels={tLabels} wsState={wsState} />}
       {tab === "votes" && <VotesTab installedPlugins={installedPlugins} knownPlugins={knownPlugins} peerData={peerData} peers={peers} votes={votes} />}
-      {tab === "logs" && <LogsTab eventLog={eventLog} lastPoll={lastPoll} socket={socket} wsState={wsState} />}
       {tab === "search" && <SearchTab onSearch={doSearch} onTogglePlay={handleTogglePlay} playingId={playingId} searchElapsed={searchElapsed} searchError={searchError} searchLoading={searchLoading} searchQuery={searchQuery} searchResults={searchResults} setSearchResults={setSearchResults} searchType={searchType} setSearchQuery={setSearchQuery} setSearchType={setSearchType} />}
     </div>
     <PeerDetail onClose={() => setSel(null)} peer={sel} wsRef={wsRef} callback={onPeerStatsCallback} />
+    <ActivityFeed eventLog={eventLog} />
+    <StatusBar dhtNodes={dhtNodes} peers={peers} uptime={uptime} wsState={wsState} />
   </div>
 }

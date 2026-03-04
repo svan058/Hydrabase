@@ -5,6 +5,7 @@ import { toEmoji } from "../../../geo";
 import { ACCENT, BORD, confColor, latColor, MUTED, panel } from "../../../theme";
 import { fmtBytes, fmtUptime } from "../../../utils";
 import { StatusDot } from "../../StatusDot";
+import { Identicon } from "../../Identicon";
 
 interface Props {
   filter: FilterState;
@@ -26,6 +27,7 @@ export const PeersTab = ({ filter, sel, setFilter, setSel, sorted }: Props) => <
       <div style={{ alignItems: "flex-start", display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between", marginBottom: 12 }}>
         <div>
           <div style={{ alignItems: "center", display: "flex", gap: 8, marginBottom: 3 }}>
+            <Identicon address={p.address} size={24} />
             <StatusDot status={p.status} />
             <span style={{ fontSize: 12, fontWeight: 700 }}>{p.address}</span>
             <span style={{ fontSize: 12 }}>{toEmoji(p.country)}</span>
