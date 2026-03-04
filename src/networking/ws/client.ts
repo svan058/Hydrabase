@@ -19,6 +19,7 @@ interface Peer {
 export const AuthSchema = z.object({
   address: z.string().regex(/^0x/iu, { message: "Address must start with 0x" }).transform(val => val as `0x${string}`),
   username: z.string().default('Anonymous'),
+  userAgent: z.string().default('N/A'),
   signature: z.string(),
 })
 
@@ -42,7 +43,7 @@ export default class WebSocketClient {
   }
 
   static readonly init = async (peers: Peers, account: Account, hostname: `ws://${string}`) => {
-    const result = await HIP3_CONN_Authentication.verifyClientIdentity(hostname)
+    const result = await HIP3_CONN_Authentication.verifyServerFromClient(hostname)
     if (!result) return result
     const { address, username } = result
     if (peers.has(address)) return warn('DEVWARN:', `[CLIENT] Already connected/connecting to peer ${username} ${address}`)

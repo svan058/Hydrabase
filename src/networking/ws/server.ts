@@ -15,9 +15,10 @@ interface WebSocketData {
   hostname: `ws://${string}`
   username: string
   isOpened: boolean
+  userAgent: string
 }
 
-const version = readFileSync(join(__dirname, "../../../VERSION"), "utf-8").trim();
+export const version = readFileSync(join(__dirname, "../../../VERSION"), "utf-8").trim();
 
 export class WebSocketServerConnection {
   get isOpened() {
@@ -65,28 +66,13 @@ export class WebSocketServerConnection {
   }
 }
 
-const getAddress = async (headers: Record<string, string>, peers: Peers): Promise<[number, string] | `0x${string}`> => {
-  const address = HIP3_CONN_Authentication.verifyServerAddress(headers)
-  if (address instanceof Response) return [address.status, await address.text()]
-  if (peers.has(address) && address !== '0x0') return [409, 'Already connected']
-  return address
-}
-
-const getHostname = async (headers: Record<string, string>, address: `0x${string}`): Promise<[number, string] | { hostname: `ws://${string}`, username: string }> => {
-  const data = await HIP3_CONN_Authentication.verifyServerHostname(headers, address)
-  if (data instanceof Response) return [data.status, await data.text()]
-  return data
-}
-
-const handleConnection = async (server: Bun.Server<WebSocketData>, req: Request, peers: Peers): Promise<undefined | { address?: `0x${string}`, hostname?: `ws://${string}`; res: [number, string], }> => {
+const handleConnection = async (server: Bun.Server<WebSocketData>, req: Request): Promise<undefined | { address?: `0x${string}`, hostname?: `ws://${string}`; res: [number, string], }> => {
   log(`[SERVER] Connecting to client`)
   const headers = Object.fromEntries(req.headers.entries())
-  const address = await getAddress(headers, peers)
-  if (Array.isArray(address)) return { res: address }
-  const res = await getHostname(headers, address)
-  if (Array.isArray(res)) return { address, res }
-  const { username, hostname } = res
-  return server.upgrade(req, { data: { address, username, hostname, isOpened: false } }) ? undefined : { address, hostname, res: [500, "Upgrade failed"] }
+  const peer = await HIP3_CONN_Authentication.verifyClientFromServer(headers)
+  if (Array.isArray(peer)) return { res: peer }
+  const { address, username, hostname, userAgent } = peer
+  return server.upgrade(req, { data: { address, username, hostname, userAgent, isOpened: false } }) ? undefined : { address, hostname, res: [500, "Upgrade failed"] }
 }
 
 export const startServer = (account: Account, peers: Peers) => {
@@ -109,7 +95,7 @@ export const startServer = (account: Account, peers: Peers) => {
         if (url.pathname === "/") return new Response(Bun.file(`./dashboard/index.html`))
         return new Response('Page not found', { status: 404 })
       }
-      const response = await handleConnection(server, req, peers)
+      const response = await handleConnection(server, req)
       if (response === undefined) return response
       const {address, hostname, res} = response
       warn('DEVWARN:', `[SERVER] Rejected connection with client ${address || hostname ? [address,hostname].join(' ') : 'N/A'} for reason: ${res[1]}`)

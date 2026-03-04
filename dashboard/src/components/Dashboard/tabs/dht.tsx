@@ -17,9 +17,9 @@ interface Props {
 
 const Header = ({ dhtNodeCounts, dhtNodes, tLabels }: { dhtNodeCounts: number[], dhtNodes: { country: string; host: string; }[], tLabels: string[] }) => {
   const countryMap = dhtNodes.reduce<Record<string, number>>((acc, { country }) => {
-    acc[country] = (acc[country] ?? 0) + 1;
-    return acc;
-  }, {});
+    acc[country] = (acc[country] ?? 0) + 1
+    return acc
+  }, {})
   return <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
     <div style={panel()}>
       <PanelHeader label="DHT Node Count" />
@@ -27,7 +27,6 @@ const Header = ({ dhtNodeCounts, dhtNodes, tLabels }: { dhtNodeCounts: number[],
         <AreaChart height={160} labels={tLabels} series={[{ color: "#a5d6ff", data: dhtNodeCounts, label: "Nodes" }]} />
       </div>
     </div>
-
     <div style={panel()}>
       <PanelHeader label="Geographic Distribution" right="connections" />
       <div style={{ padding: "12px 14px" }}>
