@@ -13,6 +13,7 @@ COPY . .
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+RUN mkdir -p /app/dist && chown 1000:1000 /app/dist
 
 ENV NODE_ENV=production
 ENV PUID=1000
