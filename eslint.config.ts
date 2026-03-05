@@ -2,7 +2,6 @@ import js from "@eslint/js";
 import perfectionist from "eslint-plugin-perfectionist";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
-import sonarjs from "eslint-plugin-sonarjs";
 import unicorn from "eslint-plugin-unicorn";
 import globals from "globals";
 import tseslint from "typescript-eslint";
@@ -23,7 +22,6 @@ export default tseslint.config(
   tseslint.configs.strict,
   tseslint.configs.stylistic,
   reactHooks.configs.flat.recommended,
-  ...sonarjs.configs.recommended,
 
   // ─── Perfectionist ────────────────────────────────────────────────────────
   perfectionist.configs["recommended-natural"],

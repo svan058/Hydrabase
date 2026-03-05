@@ -48,12 +48,12 @@ export const album = sqliteTable('albums', {
   }, table => [uniqueIndex('idx_plugin_album').on(table.plugin_id, table.id, table.address)])
 
 export const soul = sqliteTable('soul', {
-    soul_id: text('soul_id').notNull(),
-    plugin_idA: text('plugin_idA').notNull(),
-    plugin_idB: text('plugin_idB').notNull(),
+    address: text('address').notNull(),
     idA: text('idA').notNull(),
     idB: text('idB').notNull(),
-    address: text('address').notNull(),
+    plugin_idA: text('plugin_idA').notNull(),
+    plugin_idB: text('plugin_idB').notNull(),
+    soul_id: text('soul_id').notNull(),
   }, table => [uniqueIndex('idx_plugin_album').on(table.plugin_idA, table.plugin_idB, table.address)])
-export const schema = { album, artist, track, soul } as const
+export const schema = { album, artist, soul, track } as const
 // Bunx drizzle-kit generate --dialect sqlite --schema ./src/db/schema.ts

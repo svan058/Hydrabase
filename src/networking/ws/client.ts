@@ -9,15 +9,15 @@ import { HIP3_CONN_Authentication } from '../../protocol/HIP3/authentication'
 export interface Peer {
   address: `0x${string}`
   hostname: `ws://${string}`
-  username: string
   userAgent: string
+  username: string
 }
 
 export const AuthSchema = z.object({
   address: z.string().regex(/^0x/iu, { message: "Address must start with 0x" }).transform(val => val as `0x${string}`),
-  username: z.string().default('Anonymous'),
-  userAgent: z.string().default('Hydrabase/Unknown'),
   signature: z.string(),
+  userAgent: z.string().default('Hydrabase/Unknown'),
+  username: z.string().default('Anonymous'),
 })
 
 export default class WebSocketClient {
@@ -42,10 +42,10 @@ export default class WebSocketClient {
   static readonly init = async (peers: Peers, account: Account, hostname: `ws://${string}`) => {
     const result = await HIP3_CONN_Authentication.verifyServerFromClient(hostname)
     if (!result) return result
-    const { address, username, userAgent } = result
+    const { address, userAgent, username } = result
     if (peers.has(address)) return warn('DEVWARN:', `[CLIENT] Already connected/connecting to peer ${username} ${address}`)
     if (address === account.address) return warn('DEVWARN:', `[CLIENT] Not connecting to self`)
-    return new WebSocketClient(account, { address, hostname, username, userAgent }, peers)
+    return new WebSocketClient(account, { address, hostname, userAgent, username }, peers)
   }
 
   public readonly close = () => {

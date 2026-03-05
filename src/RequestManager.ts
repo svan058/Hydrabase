@@ -14,11 +14,11 @@ export type Artist = z.infer<typeof ArtistSearchResultSchema>
 export type Request = z.infer<typeof RequestSchema>
 export type Response<T extends keyof SearchResult = keyof SearchResult> = SearchResult[T][]
 export interface SearchResult {
-  albums: Album
   'album.tracks': Track
-  artists: Artist
+  albums: Album
   'artist.albums': Album
   'artist.tracks': Track
+  artists: Artist
   tracks: Track
 }
 export type Track = z.infer<typeof TrackSearchResultSchema>

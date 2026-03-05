@@ -81,7 +81,7 @@ export default class Spotify implements MetadataPlugin {
     if (limit > 50) {throw new Error("Maximum limit is 50")}
   }
 
-  async albumTracks(id: string): Promise<Omit<Track, 'soul_id' | 'address'>[]> {
+  async albumTracks(id: string): Promise<Omit<Track, 'address' | 'soul_id'>[]> {
     const token = await this.authenticate()
 
     const params = new URLSearchParams({
@@ -112,7 +112,7 @@ export default class Spotify implements MetadataPlugin {
     }))
   }
 
-  async artistAlbums(id: string): Promise<Omit<Album, 'soul_id' | 'address'>[]> {
+  async artistAlbums(id: string): Promise<Omit<Album, 'address' | 'soul_id'>[]> {
     const token = await this.authenticate()
 
     const params = new URLSearchParams({
@@ -142,7 +142,7 @@ export default class Spotify implements MetadataPlugin {
     }))
   }
 
-  async artistTracks(id: string): Promise<Omit<Track, 'soul_id' | 'address'>[]> {
+  async artistTracks(id: string): Promise<Omit<Track, 'address' | 'soul_id'>[]> {
     const token = await this.authenticate()
 
     const params = new URLSearchParams({
@@ -173,7 +173,7 @@ export default class Spotify implements MetadataPlugin {
     }))
   }
 
-  async searchAlbums(term: string): Promise<Omit<Album, 'soul_id' | 'address'>[]> {
+  async searchAlbums(term: string): Promise<Omit<Album, 'address' | 'soul_id'>[]> {
     const token = await this.authenticate()
 
     const params = new URLSearchParams({
@@ -201,7 +201,7 @@ export default class Spotify implements MetadataPlugin {
     }))
   }
 
-  async searchArtists(term: string): Promise<Omit<Artist, 'soul_id' | 'address'>[]> {
+  async searchArtists(term: string): Promise<Omit<Artist, 'address' | 'soul_id'>[]> {
     const token = await this.authenticate()
 
     const params = new URLSearchParams({
@@ -232,7 +232,7 @@ export default class Spotify implements MetadataPlugin {
     }))
   }
 
-  async searchTracks(term: string): Promise<Omit<Track, 'soul_id' | 'address'>[]> {
+  async searchTracks(term: string): Promise<Omit<Track, 'address' | 'soul_id'>[]> {
     const token = await this.authenticate()
 
     const params = new URLSearchParams({

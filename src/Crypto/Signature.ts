@@ -3,6 +3,7 @@ import secp256k1 from 'secp256k1'
 import SuperJSON from 'superjson'
 import z from 'zod'
 
+import { log } from '../log'
 import { Account } from './Account'
 
 
@@ -22,14 +23,14 @@ export class Signature implements z.infer<typeof SignatureSchema> {
   static readonly fromString = (serialisedSignature: string): Signature => new Signature(SignatureSchema.parse(SuperJSON.parse(serialisedSignature)))
 
   static sign(message: string, privKey: Uint8Array) {
-    console.log('Verify:', message)
+    log('LOG:', `Signing message ${message}`)
     const { recid, signature } = secp256k1.ecdsaSign(Account.hash(message), privKey)
     return new Signature({ recid, signature })
   }
   public readonly toString = (): string => SuperJSON.stringify({ recid: this.recid, signature: this.signature })
 
   verify = (message: string, address: string) => {
-    console.log('Verify:', message, address)
+    log('LOG:', `Verifying message ${message} from ${address}`)
     return `0x${  keccak256(secp256k1.ecdsaRecover(this.signature, this.recid, Account.hash(message), false).slice(1)).slice(-40)}` === address
   }
 }

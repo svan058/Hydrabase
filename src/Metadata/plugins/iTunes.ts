@@ -88,7 +88,7 @@ export default class ITunes implements MetadataPlugin {
     if (limit > 200) {throw new Error('Maximum limit is 200')}
   }
 
-  async albumTracks(id: string): Promise<Omit<Track, 'soul_id' | 'address'>[]> {
+  async albumTracks(id: string): Promise<Omit<Track, 'address' | 'soul_id'>[]> {
     const params = new URLSearchParams({
       country: this.country,
       entity: 'song',
@@ -118,7 +118,7 @@ export default class ITunes implements MetadataPlugin {
     }))
   }
 
-  async artistAlbums(id: string): Promise<Omit<Album, 'soul_id' | 'address'>[]> {
+  async artistAlbums(id: string): Promise<Omit<Album, 'address' | 'soul_id'>[]> {
     const params = new URLSearchParams({
       country: this.country,
       entity: 'album',
@@ -152,7 +152,7 @@ export default class ITunes implements MetadataPlugin {
     });
   }
 
-  async artistTracks(id: string): Promise<Omit<Track, 'soul_id' | 'address'>[]> {
+  async artistTracks(id: string): Promise<Omit<Track, 'address' | 'soul_id'>[]> {
     const params = new URLSearchParams({
       country: this.country,
       entity: 'song',
@@ -182,7 +182,7 @@ export default class ITunes implements MetadataPlugin {
     }))
   }
 
-  async searchAlbums(term: string): Promise<Omit<Album, 'soul_id' | 'address'>[]> {
+  async searchAlbums(term: string): Promise<Omit<Album, 'address' | 'soul_id'>[]> {
     const params = new URLSearchParams({
       country: this.country,
       entity: 'album',
@@ -215,7 +215,7 @@ export default class ITunes implements MetadataPlugin {
     });
   }
 
-  async searchArtists(term: string): Promise<Omit<Artist, 'soul_id' | 'address'>[]> {
+  async searchArtists(term: string): Promise<Omit<Artist, 'address' | 'soul_id'>[]> {
     const params = new URLSearchParams({
       country: this.country,
       entity: 'musicArtist',
@@ -242,7 +242,7 @@ export default class ITunes implements MetadataPlugin {
     }));
   }
 
-  async searchTracks(term: string): Promise<Omit<Track, 'soul_id' | 'address'>[]> {
+  async searchTracks(term: string): Promise<Omit<Track, 'address' | 'soul_id'>[]> {
     const params = new URLSearchParams({
       country: this.country,
       entity: 'musicTrack',

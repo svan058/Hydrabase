@@ -27,6 +27,7 @@ export const enrichPeers = (apiPeers: ApiPeer[] = [], knownPeers: `0x${string}`[
     const apiPeer  = apiPeers.find(p => p.address === address)
     const existing = existingPeers.find(p => p.address === address)
     return {
+      activity: existing?.activity ?? [],
       address,
       confidence: apiPeer?.confidence ?? 0,
       country: apiPeer?.hostname ? await getCountry(parseWsHost(apiPeer.hostname).hostname) : '-',
@@ -37,9 +38,8 @@ export const enrichPeers = (apiPeers: ApiPeer[] = [], knownPeers: `0x${string}`[
       status: apiPeer?.status ?? "disconnected",
       txTotal: apiPeer?.txTotal ?? 0,
       uptime: apiPeer?.uptime ?? 0,
-      username: apiPeer?.username ?? "Anonymous",
       userAgent: apiPeer?.userAgent ?? "Hydrabase/Unknown",
-      activity: existing?.activity ?? [],
+      username: apiPeer?.username ?? "Anonymous",
     } satisfies PeerWithCountry
   }))
 };

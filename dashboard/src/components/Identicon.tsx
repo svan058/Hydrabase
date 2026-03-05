@@ -32,5 +32,5 @@ export const Identicon = ({ address, size = 24, style }: Props) => {
     }
   }, [address, size])
 
-  return <canvas ref={ref} width={size} height={size} style={{ borderRadius: 4, flexShrink: 0, imageRendering: "pixelated", ...style }} />
+  return <canvas height={size} ref={ref} style={{ borderRadius: 4, flexShrink: 0, imageRendering: "pixelated", ...style }} width={size} />
 }

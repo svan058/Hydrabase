@@ -41,7 +41,6 @@ export class DHT_Node {
       // Log(`[DHT] Discovered node ${node.host}:${node.port}`)
     })
     this.dht.on('peer', async peer => {
-      if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|127\.|0\.|::1$|fc|fd)/i.test(peer.host)) return
       if (`ws://${peer.host}:${peer.port}` === `ws://${CONFIG.hostname}:${CONFIG.serverPort}`) return
       if (this.knownPeers.has(`${peer.host}:${peer.port}`)) return
       this.knownPeers.add(`${peer.host}:${peer.port}`)

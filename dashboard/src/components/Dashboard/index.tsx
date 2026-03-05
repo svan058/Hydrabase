@@ -2,21 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 
+import type { PeerStats } from "../../../../src/networking/ws/peer"
 import type { NodeStats } from "../../../../src/StatsReporter"
 import type { EventEntry, FilterState, PeerWithCountry, VoteCounts, WsState } from "../../types"
 
 import { enrichPeers, getCountry } from "../../geo"
 import { BG, GLOBAL_STYLES, TEXT } from "../../theme"
+import { ActivityFeed } from "../ActivityFeed"
 import { PeerDetail } from "../PeerDetail"
+import { Sidebar, type Tab } from "../Sidebar"
+import { StatusBar } from "../StatusBar"
 import { DhtTab } from "./tabs/dht"
 import { OverviewTab } from "./tabs/Overview"
 import { PeersTab } from "./tabs/Peers"
 import { SearchTab } from "./tabs/Search"
 import { VotesTab } from "./tabs/votes"
-import type { PeerStats } from "../../../../src/networking/ws/peer"
-import { Sidebar, type Tab } from "../Sidebar"
-import { StatusBar } from "../StatusBar"
-import { ActivityFeed } from "../ActivityFeed"
 
 export interface BwPoint { rx: number; tx: number }
 
@@ -41,7 +41,7 @@ export const Dashboard = ({ apiKey, socket }: { apiKey: string; socket: string }
   const [bwHistory, setBwHistory] = useState<BwPoint[]>(Array(BW_HISTORY_LEN).fill({ rx: 0, tx: 0 }))
   const prevTotalsRef = useRef<{ rx: number; tx: number }>({ rx: 0, tx: 0 })
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchType, setSearchType] = useState<"artists" | "albums" | "tracks" | "artist.albums" | "artist.tracks" | "album.tracks">("artists")
+  const [searchType, setSearchType] = useState<"album.tracks" | "albums" | "artist.albums" | "artist.tracks" | "artists" | "tracks">("artists")
   const [searchResults, setSearchResults] = useState<null | unknown[]>(null)
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchError, setSearchError] = useState<null | string>(null)
@@ -51,10 +51,10 @@ export const Dashboard = ({ apiKey, socket }: { apiKey: string; socket: string }
   const pendingSearches = useRef(new Map<number, (r: unknown[]) => void>())
   const nonceRef = useRef(Math.floor(Math.random() * 90_000) + 10_000)
   const [tab, setTab] = useState<Tab>("overview")
-  const [sel, setSel] = useState<PeerWithCountry | null>(null)
+  const [sel, setSel] = useState<null | PeerWithCountry>(null)
   const [filter, setFilter] = useState<FilterState>("all")
 
-  const onPeerStatsRef = useRef<({ peer_stats, nonce }: { peer_stats: PeerStats, nonce: number }) => void>(() => {})
+  const onPeerStatsRef = useRef<({ nonce, peer_stats }: { nonce: number; peer_stats: PeerStats, }) => void>(() => {})
   const wsRef = useRef<undefined | WebSocket>(undefined)
 
   const addLog = useCallback((lv: string, m: string) => {
@@ -186,7 +186,7 @@ export const Dashboard = ({ apiKey, socket }: { apiKey: string; socket: string }
   }, [playingId])
 
   const tLabels = Array.from({ length: 60 }, (_, i) => `${60 - i}s`).toReversed()
-  const onPeerStatsCallback = (onPeerStats: ({ peer_stats, nonce }: { peer_stats: PeerStats, nonce: number }) => void) => {
+  const onPeerStatsCallback = (onPeerStats: ({ nonce, peer_stats }: { nonce: number; peer_stats: PeerStats, }) => void) => {
     onPeerStatsRef.current = onPeerStats
   }
 
@@ -198,9 +198,9 @@ export const Dashboard = ({ apiKey, socket }: { apiKey: string; socket: string }
       {tab === "peers"  && <PeersTab filter={filter} sel={sel} setFilter={setFilter} setSel={setSel} sorted={filterPeers(peers, filter)} />}
       {tab === "dht"    && <DhtTab dhtNodeCounts={dhtNodeCounts} dhtNodes={dhtNodes} socket={socket} tLabels={tLabels} wsState={wsState} />}
       {tab === "votes"  && <VotesTab installedPlugins={installedPlugins} knownPlugins={knownPlugins} peerData={peerData} peers={peers} votes={votes} />}
-      {tab === "search" && <SearchTab onSearch={doSearch} onTogglePlay={handleTogglePlay} playingId={playingId} searchElapsed={searchElapsed} searchError={searchError} searchLoading={searchLoading} searchQuery={searchQuery} searchResults={searchResults} setSearchResults={setSearchResults} searchType={searchType} setSearchQuery={setSearchQuery} setSearchType={setSearchType} />}
+      {tab === "search" && <SearchTab onSearch={doSearch} onTogglePlay={handleTogglePlay} playingId={playingId} searchElapsed={searchElapsed} searchError={searchError} searchLoading={searchLoading} searchQuery={searchQuery} searchResults={searchResults} searchType={searchType} setSearchQuery={setSearchQuery} setSearchResults={setSearchResults} setSearchType={setSearchType} />}
     </div>
-    <PeerDetail onClose={() => setSel(null)} peer={sel} wsRef={wsRef} callback={onPeerStatsCallback} />
+    <PeerDetail callback={onPeerStatsCallback} onClose={() => setSel(null)} peer={sel} wsRef={wsRef} />
     <ActivityFeed eventLog={eventLog} />
     <StatusBar dhtNodes={dhtNodes} peers={peers} uptime={uptime} wsState={wsState} />
   </div>

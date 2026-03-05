@@ -6,14 +6,14 @@ import type { PeerWithCountry } from "../types";
 import { toEmoji } from "../geo";
 import { ACCENT, BG, BORD, confColor, latColor, MUTED, SURF } from "../theme";
 import { fmtBytes, fmtUptime, shortAddr } from "../utils";
-import { StatusDot } from "./StatusDot";
 import { Identicon } from "./Identicon";
+import { StatusDot } from "./StatusDot";
 
 interface Props {
+  callback: (callback: ({ nonce, peer_stats }: { nonce: number; peer_stats: PeerStats, }) => void) => void
   onClose: () => void
   peer: null | PeerWithCountry
   wsRef: React.RefObject<undefined | WebSocket>
-  callback: (callback: ({ peer_stats, nonce }: { peer_stats: PeerStats, nonce: number }) => void) => void
 }
 
 const nonceRoot = Math.random()
@@ -139,14 +139,14 @@ const requestPeerStats = (peer: PeerWithCountry, ws: WebSocket, pending: React.R
   ws.send(JSON.stringify({ nonce, peer_stats: { address: peer.address } }))
 }
 
-export const PeerDetail = ({ onClose, peer, wsRef, callback }: Props) => {
+export const PeerDetail = ({ callback, onClose, peer, wsRef }: Props) => {
   const [data, setData] = useState<null | PeerStats>(null)
   const [loading, setLoading] = useState(false)
   const [wsError, setWsError] = useState<null | string>(null)
   const nonceRef = useRef(Math.floor(nonceRoot * 90_000) + 10_000)
   const pending = useRef(new Map<number, (d: PeerStats) => void>())
 
-  const onPeerStats = ({ peer_stats, nonce }: { peer_stats: PeerStats, nonce: number }) => {
+  const onPeerStats = ({ nonce, peer_stats }: { nonce: number; peer_stats: PeerStats, }) => {
     const resolve = pending.current.get(nonce)
     if (!resolve) return
     pending.current.delete(nonce)

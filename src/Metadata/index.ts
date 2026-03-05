@@ -59,16 +59,16 @@ export const AlbumSearchResultSchema = z.object({
 })
 
 export interface MetadataPlugin {
-  albumTracks: (id: string, peers: Peers) => Promise<Omit<Track, 'soul_id' | 'address'>[]>
-  artistAlbums: (id: string, peers: Peers) => Promise<Omit<Album, 'soul_id' | 'address'>[]>
-  artistTracks: (id: string, peers: Peers) => Promise<Omit<Track, 'soul_id' | 'address'>[]>
+  albumTracks: (id: string, peers: Peers) => Promise<Omit<Track, 'address' | 'soul_id'>[]>
+  artistAlbums: (id: string, peers: Peers) => Promise<Omit<Album, 'address' | 'soul_id'>[]>
+  artistTracks: (id: string, peers: Peers) => Promise<Omit<Track, 'address' | 'soul_id'>[]>
   id: string
-  searchAlbums: (query: string) => Promise<Omit<Album, 'soul_id' | 'address'>[]>
-  searchArtists: (query: string) => Promise<Omit<Artist, 'soul_id' | 'address'>[]>
-  searchTracks: (query: string) => Promise<Omit<Track, 'soul_id' | 'address'>[]>
+  searchAlbums: (query: string) => Promise<Omit<Album, 'address' | 'soul_id'>[]>
+  searchArtists: (query: string) => Promise<Omit<Artist, 'address' | 'soul_id'>[]>
+  searchTracks: (query: string) => Promise<Omit<Track, 'address' | 'soul_id'>[]>
 }
 
-const computeConfidence = (artistConfidences: number[], peerConfidences: number[], k = 1.0): number | null => {
+const computeConfidence = (artistConfidences: number[], peerConfidences: number[], k = 1.0): null | number => {
   if (peerConfidences.length === 0) return null
 
   let numerator = 0

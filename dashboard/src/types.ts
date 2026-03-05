@@ -9,8 +9,8 @@ export interface EventEntry {
 export type FilterState = "all" | "connected" | "connecting" | "disconnected"
 
 export type PeerWithCountry = ApiPeer & {
-  country: string
   activity: number[]
+  country: string
 };
 
 export interface VoteCounts {

@@ -1,6 +1,6 @@
 import type { PeerWithCountry, WsState } from "../types"
 
-import { BORD, MUTED, TEXT, ACCENT } from "../theme"
+import { ACCENT, BORD, MUTED, TEXT } from "../theme"
 import { fmtBytes, fmtClock } from "../utils"
 import { SocketStatus } from "./SocketStatus"
 
@@ -36,6 +36,6 @@ export const StatusBar = ({ dhtNodes, peers, uptime, wsState }: Props) => {
     <Item label="↑" value={fmtBytes(totalTx)} valueColor="#f0883e" />
     <Sep />
     <Item label="uptime" value={fmtClock(uptime)} />
-    <span style={{ background: "#21262d", border: `1px solid ${BORD}`, borderRadius: 3, color: MUTED, fontSize: 9, letterSpacing: ".05em", padding: "1px 5px", marginLeft: "auto" }}>v{VERSION}</span>
+    <span style={{ background: "#21262d", border: `1px solid ${BORD}`, borderRadius: 3, color: MUTED, fontSize: 9, letterSpacing: ".05em", marginLeft: "auto", padding: "1px 5px" }}>v{VERSION}</span>
   </div>
 }

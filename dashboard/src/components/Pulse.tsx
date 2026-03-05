@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react"
-import { ORANGE, ACCENT, BG2, BORD, GREEN, TEXT, MUTED } from "../theme";
+
 import type { BwPoint } from "./Dashboard";
+
+import { ACCENT, BG2, BORD, GREEN, MUTED, ORANGE, TEXT } from "../theme";
 
 export const NetworkPulseCanvas = ({ bwHistory }: { bwHistory: BwPoint[] }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -18,7 +20,7 @@ export const NetworkPulseCanvas = ({ bwHistory }: { bwHistory: BwPoint[] }) => {
 
     ctx.clearRect(0, 0, W, H);
 
-    // subtle grid
+    // Subtle grid
     ctx.strokeStyle = "rgba(26,37,53,.55)";
     ctx.lineWidth   = 1;
     for (let x = 0; x < W; x += W / 12) {
@@ -40,7 +42,7 @@ export const NetworkPulseCanvas = ({ bwHistory }: { bwHistory: BwPoint[] }) => {
         y: H - (v / maxVal) * (H * 0.82),
       }));
 
-      // fill
+      // Fill
       const grad = ctx.createLinearGradient(0, 0, 0, H);
       grad.addColorStop(0, `${color}33`);
       grad.addColorStop(1, `${color}04`);
@@ -52,7 +54,7 @@ export const NetworkPulseCanvas = ({ bwHistory }: { bwHistory: BwPoint[] }) => {
       ctx.closePath();
       ctx.fill();
 
-      // line
+      // Line
       ctx.strokeStyle  = color;
       ctx.lineWidth    = 1.5;
       ctx.lineJoin     = "round";
@@ -63,7 +65,7 @@ export const NetworkPulseCanvas = ({ bwHistory }: { bwHistory: BwPoint[] }) => {
       ctx.stroke();
       ctx.shadowBlur = 0;
 
-      // live dot at end
+      // Live dot at end
       const last = pts[pts.length - 1];
       if (last) {
         ctx.beginPath();
@@ -79,7 +81,7 @@ export const NetworkPulseCanvas = ({ bwHistory }: { bwHistory: BwPoint[] }) => {
 
   return (
     <div style={{ background: BG2, border: `1px solid ${BORD}`, borderRadius: 8, overflow: "hidden" }}>
-      {/* header */}
+      {/* Header */}
       <div style={{ alignItems: "center", borderBottom: `1px solid ${BORD}`, display: "flex", gap: 8, padding: "9px 14px" }}>
         <div style={{
           animation: "pulse-dot 1.4s ease infinite",
@@ -103,7 +105,7 @@ export const NetworkPulseCanvas = ({ bwHistory }: { bwHistory: BwPoint[] }) => {
           </span>
         </div>
       </div>
-      {/* canvas */}
+      {/* Canvas */}
       <div style={{ height: 120, position: "relative" }}>
         <canvas ref={canvasRef} style={{ display: "block", height: "100%", width: "100%" }} />
       </div>

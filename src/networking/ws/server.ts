@@ -3,12 +3,12 @@ import { join } from "path";
 
 import type { Account } from "../../Crypto/Account";
 import type Peers from '../../Peers';
+import type { Peer } from "./client";
 
 import { CONFIG } from '../../config'
 import { error, log, warn } from '../../log';
 import { HIP3_CONN_Authentication } from '../../protocol/HIP3/authentication'
 import { portForward } from '../upnp'
-import type { Peer } from "./client";
 
 type WebSocketData = Peer & {
   conn?: WebSocketServerConnection
@@ -26,8 +26,8 @@ export class WebSocketServerConnection {
     return {
       address: this.socket.data.address,
       hostname: this.socket.data.hostname,
-      username: this.socket.data.username,
-      userAgent: this.socket.data.userAgent
+      userAgent: this.socket.data.userAgent,
+      username: this.socket.data.username
     }
   }
 
@@ -69,8 +69,8 @@ const handleConnection = async (server: Bun.Server<WebSocketData>, req: Request)
   const headers = Object.fromEntries(req.headers.entries())
   const peer = await HIP3_CONN_Authentication.verifyClientFromServer(headers)
   if (Array.isArray(peer)) return { res: peer }
-  const { address, username, hostname, userAgent } = peer
-  return server.upgrade(req, { data: { address, username, hostname, userAgent, isOpened: false } }) ? undefined : { address, hostname, res: [500, "Upgrade failed"] }
+  const { address, hostname, userAgent, username } = peer
+  return server.upgrade(req, { data: { address, hostname, isOpened: false, userAgent, username } }) ? undefined : { address, hostname, res: [500, "Upgrade failed"] }
 }
 
 export const startServer = (account: Account, peers: Peers) => {

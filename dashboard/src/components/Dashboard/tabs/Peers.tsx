@@ -4,14 +4,14 @@ import type { FilterState, PeerWithCountry } from "../../../types";
 import { toEmoji } from "../../../geo";
 import { ACCENT, BORD, confColor, latColor, MUTED, panel } from "../../../theme";
 import { fmtBytes, fmtUptime } from "../../../utils";
-import { StatusDot } from "../../StatusDot";
 import { Identicon } from "../../Identicon";
+import { StatusDot } from "../../StatusDot";
 
 interface Props {
   filter: FilterState;
   sel: ApiPeer | null;
   setFilter: (f: FilterState) => void;
-  setSel: (p: PeerWithCountry | null) => void;
+  setSel: (p: null | PeerWithCountry) => void;
   sorted: PeerWithCountry[];
 }
 

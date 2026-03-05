@@ -99,14 +99,14 @@ export class Peer {
   get historicConfidence(): number {
     return getHistoricPeerConfidence(this.db, this.address, this.ownPlugins)
   }
-  get plugins(): string[] {
-    return getPlugins(this.db, this.address)
-  }
   get hostname() {
     return this.socket.peer.hostname
   }
   get isOpened() {
     return this.socket.isOpened
+  }
+  get plugins(): string[] {
+    return getPlugins(this.db, this.address)
   }
   get rxTotal() {
     return this._rx
@@ -120,12 +120,12 @@ export class Peer {
     return this.startTime ? Number(new Date()) - this.startTime : 0
   }
 
-  get username() {
-    return this.socket.peer.username
-  }
-
   get userAgent() {
     return this.socket.peer.userAgent
+  }
+
+  get username() {
+    return this.socket.peer.username
   }
 
   private _rx = 0

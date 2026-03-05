@@ -2,11 +2,11 @@ import type { ApiPeer } from "../../../../../src/StatsReporter"
 import type { PeerWithCountry, VoteCounts } from "../../../types"
 
 import { toEmoji } from "../../../geo"
-import { ACCENT, ACCENT2, BORD, BG2, confColor, DIM, GREEN, MUTED, ORANGE, PURPLE, TEXT, YELLOW } from "../../../theme"
+import { ACCENT, ACCENT2, BG2, BORD, confColor, DIM, GREEN, MUTED, ORANGE, PURPLE, TEXT, YELLOW } from "../../../theme"
 import { shortAddr } from "../../../utils"
 import { Identicon } from "../../Identicon"
-import { StatCard } from "../../StatCard"
 import { NetworkPulseCanvas } from "../../Pulse"
+import { StatCard } from "../../StatCard"
 
 interface BwPoint { rx: number; tx: number }
 
@@ -14,7 +14,7 @@ interface Props {
   bwHistory: BwPoint[]
   peers: PeerWithCountry[]
   sel: ApiPeer | null
-  setSel: (p: PeerWithCountry | null) => void
+  setSel: (p: null | PeerWithCountry) => void
   votes: VoteCounts
 }
 
@@ -38,7 +38,7 @@ const PeerRow = ({ isSelected, onSelect, peer }: { isSelected: boolean; onSelect
         <span style={{ color: TEXT, fontSize: 11, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{peer.username}</span>
         <span style={{ fontSize: 11 }}>{toEmoji(peer.country)}</span>
       </div>
-      <div style={{ color: MUTED, fontSize: 9, paddingLeft: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{shortAddr(peer.address)}</div>
+      <div style={{ color: MUTED, fontSize: 9, overflow: "hidden", paddingLeft: 13, textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{shortAddr(peer.address)}</div>
     </div>
     <div style={{ display: "flex", flexWrap: "wrap", gap: 3, padding: "8px 6px" }}>
       {peer.plugins.slice(0, 2).map(pl => <span key={pl} style={{ background: "rgba(0,200,255,.08)", border: "1px solid rgba(0,200,255,.18)", borderRadius: 3, color: ACCENT, fontSize: 8, letterSpacing: ".03em", padding: "1px 5px" }}>{pl}</span>)}
@@ -57,7 +57,7 @@ const PeerRow = ({ isSelected, onSelect, peer }: { isSelected: boolean; onSelect
   </div>
 }
 
-const PeerList = ({ peers, sel, setSel }: { peers: PeerWithCountry[]; sel: ApiPeer | null; setSel: (p: PeerWithCountry | null) => void }) => <div style={{ background: BG2, border: `1px solid ${BORD}`, borderRadius: 8, overflow: "hidden" }}>
+const PeerList = ({ peers, sel, setSel }: { peers: PeerWithCountry[]; sel: ApiPeer | null; setSel: (p: null | PeerWithCountry) => void }) => <div style={{ background: BG2, border: `1px solid ${BORD}`, borderRadius: 8, overflow: "hidden" }}>
   <div style={{ alignItems: "center", borderBottom: `1px solid ${BORD}`, color: MUTED, display: "grid", fontSize: 9, fontWeight: 700, gap: 0, gridTemplateColumns: "36px 1fr 100px 60px 60px 60px", letterSpacing: ".08em", padding: "6px 0", textTransform: "uppercase" }}>
     <div />
     <div style={{ padding: "0 10px" }}>Peer</div>
@@ -67,7 +67,7 @@ const PeerList = ({ peers, sel, setSel }: { peers: PeerWithCountry[]; sel: ApiPe
     <div style={{ padding: "0 8px 0 4px" }}>Conf</div>
   </div>
   {peers.length === 0 && <div style={{ color: MUTED, fontSize: 11, padding: "20px 14px", textAlign: "center" }}>No peers yet…</div>}
-  {peers.map(p => <PeerRow key={p.address} isSelected={sel?.address === p.address} onSelect={() => setSel(sel?.address === p.address ? null : p)} peer={p} />)}
+  {peers.map(p => <PeerRow isSelected={sel?.address === p.address} key={p.address} onSelect={() => setSel(sel?.address === p.address ? null : p)} peer={p} />)}
 </div>
 
 export const OverviewTab = ({ bwHistory, peers, sel, setSel, votes }: Props) => {
