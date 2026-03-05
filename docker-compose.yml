@@ -1,9 +1,7 @@
 services:
   hydrabase:
-    build: .
     image: ghcr.io/quixthe2nd/hydrabase
     container_name: hydrabase
-    network_mode: host
     volumes:
       #- ./data:/app/data
       - /mnt/user/appdata/hydrabase/data:/app/data
@@ -14,6 +12,7 @@ services:
       SERVER_PORT: 4544
       API_KEY: your_hex_16_key
       #EXTERNAL_IP: your.public.ip.here  # Override if auto-detection fails (CGNAT, offline)
+      #TUNNEL_URL: wss://hydrabase.yourdomain.com  # CF/Pangolin tunnel URL — advertised to peers instead of IP, no open ports needed
       #SPOTIFY_CLIENT_ID: $SPOTIFY_CLIENT_ID
       #SPOTIFY_CLIENT_SECRET: $SPOTIFY_CLIENT_SECRET
       #USERNAME: A
