@@ -15,21 +15,21 @@ type Auth =
 const prove = {
   client: (account: Account, peerHostname: `ws://${string}`) => ({
     'x-address': account.address,
-    'x-hostname': `ws://${CONFIG.hostname}:${CONFIG.serverPort}`,
+    'x-hostname': CONFIG.advertiseUrl,
     'x-signature': account.sign(`I am connecting to ${peerHostname}`).toString()
   }),
   server: (account: Account, port: number) => new Response(JSON.stringify({
     address: account.address,
     username: CONFIG.username,
     userAgent: `Hydrabase/${version}`,
-    signature: account.sign(`I am ws://${CONFIG.hostname}:${port}`).toString()
+    signature: account.sign(`I am ${CONFIG.advertiseUrl}`).toString()
   } satisfies z.infer<typeof AuthSchema>))
 }
 
 const verify = {
   serverFromClient: (hostname: `ws://${string}`) => new Promise<{ address: `0x${string}`, username: string, userAgent: string } | false>(resolve => {
     log(`[HIP3] Verifying server address ${hostname}`)
-    fetch(`${hostname.replace('ws://', 'http://')}/auth`).then(async response => {
+    fetch(`${hostname.replace(/^wss?:\/\//, (m) => m === 'wss://' ? 'https://' : 'http://')}/auth`).then(async response => {
       const auth = AuthSchema.parse(JSON.parse(await response.text()))
       return resolve(Signature.fromString(auth.signature).verify(`I am ${hostname}`, auth.address) ? { address: auth.address, username: auth.username, userAgent: auth["userAgent"] } : warn('DEVWARN:', "[HIP3] Invalid authentication from client's server"))
     }).catch((error: Error) => resolve(warn('WARN:', `[HIP3] Failed to authenticate server ${hostname}`, `- ${error.name} ${error.message}`)))
@@ -47,14 +47,14 @@ const verify = {
     if (unverifiedAuth.apiKey && unverifiedAuth.apiKey !== CONFIG.apiKey) return [401, 'Invalid API key']
     else if (unverifiedAuth.signature) {
       if (!unverifiedAddress) return [400, 'Missing address header']
-      if (!unverifiedAuth.signature.verify(`I am connecting to ws://${CONFIG.hostname}:${CONFIG.serverPort}`, unverifiedAddress)) return [403, 'Authentication failed']
+      if (!unverifiedAuth.signature.verify(`I am connecting to ${CONFIG.advertiseUrl}`, unverifiedAddress)) return [403, 'Authentication failed']
       address = unverifiedAddress as `0x${string}`
     } else return { username: 'API', address: '0x0', hostname: 'ws://', userAgent: `Hydrabase-API/${version}` }
 
     log(`[HIP3] Verifying client hostname ${address}`)
     if (!unverifiedHostname) return [500, "Missing Hostname"]
     const data = await new Promise<{ username: string, userAgent: string, hostname: `ws://${string}` } | [number, string]>(resolve => {
-      fetch(`${unverifiedHostname.replace('ws://', 'http://')}/auth`).then(async response => {
+      fetch(`${unverifiedHostname.replace(/^wss?:\/\//, (m) => m === 'wss://' ? 'https://' : 'http://')}/auth`).then(async response => {
         const auth = AuthSchema.parse(JSON.parse(await response.text()))
         return resolve(Signature.fromString(auth.signature).verify(`I am ${unverifiedHostname}`, auth.address) ? { username: auth.username, userAgent: auth.userAgent, hostname: unverifiedHostname as `ws://${string}` } : [500, 'Invalid authentication from server'])
       }).catch(() => resolve([500, `Failed to verify hostname`]))
