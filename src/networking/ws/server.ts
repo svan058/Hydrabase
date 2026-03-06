@@ -89,7 +89,6 @@ const buildWebUI = async () => {
 
 export const startServer = async (account: Account, peers: Peers) => {
   await buildWebUI()
-
   const server = Bun.serve({
     fetch: async (req, server) =>  {
       const url = new URL(req.url)

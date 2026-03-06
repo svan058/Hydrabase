@@ -120,6 +120,11 @@ public readonly isConnected = async () => {
   }
 
   public async loadCache() {
+    log('[PEERS] Connecting to bootstrap peers...')
+    await Promise.all(CONFIG.bootstrapPeers.split(',').map(async node => {
+      const socket = await WebSocketClient.init(this, this.account, `ws://${node}`)
+      if (socket) this.add(socket)
+    }))
     log('[PEERS] Loading cached peers...')
     if (!(await cacheFile.exists())) return
     const hostnames: `ws://${string}`[] = await cacheFile.json()

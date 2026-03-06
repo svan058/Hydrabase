@@ -1,5 +1,7 @@
 export const CONFIG = {
   apiKey: process.env['API_KEY'] ?? false,
+  bootstrapPeers: 'ddns.yazdani.au:4545,ddns.yazdani.au:4544',
+  dhtBootstrapNodes: 'router.bittorrent.com:6881,router.utorrent.com:6881,dht.transmissionbt.com:6881,ddns.yazdani.au:4545,ddns.yazdani.au:4544',
   dhtPort: Number(process.env['DHT_PORT'] ?? 4545),
   dhtReannounce: 15*60*1_000, // Ms
   dhtRoomSeed: 'hydrabase',
