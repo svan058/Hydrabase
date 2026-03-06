@@ -1,3 +1,4 @@
+import type { NodeStats } from "../../../../../src/StatsReporter"
 import type { WsState } from "../../../types"
 
 import { toEmoji } from "../../../geo"
@@ -11,6 +12,7 @@ interface Props {
   dhtNodeCounts: number[]
   dhtNodes: { country: string; host: string; }[]
   socket: string
+  stats: NodeStats | null
   tLabels: string[]
   wsState: WsState
 }

@@ -7,6 +7,7 @@ export const CONFIG = {
   hostname: process.env['EXTERNAL_IP'] ?? (await (await fetch('https://icanhazip.com')).text()).trim(),
   listenAddress: process.env['LISTEN_ADDRESS'] ?? '0.0.0.0',
   pluginConfidence: 'x / (x + y)',
+  requireDhtConnection: process.env['REQUIRE_DHT_CONNECTION'] !== 'false',
   serverPort: Number(process.env['SERVER_PORT'] ?? 4545),
   soulIdCutoff: 32,
   upnpReannounce: 1800, // Seconds

@@ -5,39 +5,50 @@ import type { Account } from '../Crypto/Account';
 import type Peers from '../Peers';
 
 import { CONFIG } from '../config';
-import { error, log } from '../log';
+import { error, log, warn } from '../log';
 import { portForward } from './upnp'
 import WebSocketClient from './ws/client';
 
 export class DHT_Node {
+  public readonly resolved = {
+    cacheLoaded: false,
+    connected: false,
+    listening: false,
+    ready: false,
+  }
   get nodes() {
     return this.dht.toJSON().nodes
   }
-
   private readonly dht: DHT
-  private readonly knownPeers = new Set<`${string}:${number}`>();
+  private readonly knownPeers = new Set<`${string}:${number}`>()
+  private lastResolved = 0
   private retryTimeout: NodeJS.Timeout | undefined
 
   constructor (account: Account, peers: Peers, private readonly cacheFile = Bun.file('./data/dht-nodes.json')) {
-    portForward(CONFIG.dhtPort, 'Hydrabase (UDP)', 'UDP');
+    portForward(CONFIG.dhtPort, 'Hydrabase (UDP)', 'UDP').catch(err => { warn('WARN:', `[UPnP] Failed: ${err.message} - Ignore if manually port forwarded`) })
     this.dht = new DHT({ bootstrap: ['router.bittorrent.com:6881', 'router.utorrent.com:6881', 'dht.transmissionbt.com:6881'], krpc: krpc() })
-    this.dht.listen(CONFIG.dhtPort, '0.0.0.0', () => log(`[DHT] Listening on port ${CONFIG.dhtPort}`))
+    this.dht.listen(CONFIG.dhtPort, '0.0.0.0', () => {
+      log(`[DHT] Listening on port ${CONFIG.dhtPort}`)
+      this.resolved.listening = true
+    })
     this.dht.on('error', err => error('ERROR:', '[DHT] An error occurred', {err}))
-    // This.dht.on('warning', warning => warn('WARN:', '[DHT] A warning was thrown', warning))
     this.dht.on('ready', () => {
       log(`[DHT] Ready with ${this.nodes.length} nodes`)
-      this.announce()
-      setInterval(() => this.announce(), CONFIG.dhtReannounce)
+      this.resolved.ready = true
+      this.loadCache()
     })
     let lastNodes = 0
     this.dht.on('node', () => {
       const nodes = this.dht.toJSON().nodes.length
+      if (nodes > 1 && !this.resolved.connected) {
+        log(`[DHT] Connected to ${nodes} nodes`)
+        this.resolved.connected = true
+      }
       if (nodes % 25 === 0 && nodes !== lastNodes) {
         log(`[DHT] Connected to ${nodes} nodes`)
         lastNodes = nodes
       }
       this.cacheFile.write(JSON.stringify(this.dht.toJSON().nodes))
-      // Log(`[DHT] Discovered node ${node.host}:${node.port}`)
     })
     this.dht.on('peer', async peer => {
       if (`ws://${peer.host}:${peer.port}` === `ws://${CONFIG.hostname}:${CONFIG.serverPort}`) return
@@ -64,16 +75,27 @@ export class DHT_Node {
 
   public readonly add = (node: DHTNode) => this.dht.addNode(node)
 
-  readonly init = async () => {
-    const cacheFile = Bun.file('./data/dht-nodes.json')
-    if (!(await cacheFile.exists())) return
-    const peers: DHTNode[] = await cacheFile.json()
-    for (const peer of peers) this.add(peer)
-  }
+  public readonly isReady = () => new Promise(res => {
+    const id = setInterval(() => {
+      if (!CONFIG.requireDhtConnection) this.resolved.connected = true
+      const resolved = Object.values(this.resolved).filter(resolved => resolved).length
+      const notResolved = Object.values(this.resolved).filter(resolved => !resolved).length
+      if (notResolved === 0) {
+        log(`[DHT] Started... ${resolved}/${resolved}`)
+        clearInterval(id)
+        this.announce()
+        setInterval(() => this.announce(), CONFIG.dhtReannounce)
+        res(undefined)
+      } else if (this.lastResolved !== resolved) {
+        log(`[DHT] Starting... ${resolved}/${resolved+notResolved}`)
+        this.lastResolved = resolved
+      }
+    }, 1_000)
+  })
 
   private readonly announce = () => {
     if (this.nodes.length <= 1) {
-      log('[DHT] Waiting for nodes')
+      log('[DHT] Waiting for nodes...')
       this.retryTimeout = setTimeout(() => this.announce(), 5_000)
       return
     }
@@ -81,5 +103,15 @@ export class DHT_Node {
     const room = DHT_Node.getRoomId()
     this.dht.announce(room, CONFIG.serverPort, err => { if (err) {error('ERROR:', '[DHT] An error occurred during announce', {err})} })
     this.dht.lookup(room, err => { if (err) {error('ERROR:', '[DHT] An error occurred during lookup', {err})} })
+  }
+
+  private readonly loadCache = async () => {
+    log('[DHT] Loading cached nodes...')
+    const cacheFile = Bun.file('./data/dht-nodes.json')
+    if (!(await cacheFile.exists())) return
+    const peers: DHTNode[] = await cacheFile.json()
+    for (const peer of peers) this.add(peer)
+    log('[DHT] Loaded cached nodes')
+    this.resolved.cacheLoaded = true
   }
 }

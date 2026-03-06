@@ -6,7 +6,7 @@ import type Peers from '../../Peers';
 import type { Peer } from "./client";
 
 import { CONFIG } from '../../config'
-import { error, log, warn } from '../../log';
+import { log, warn } from '../../log';
 import { HIP3_CONN_Authentication } from '../../protocol/HIP3/authentication'
 import { portForward } from '../upnp'
 
@@ -73,18 +73,26 @@ const handleConnection = async (server: Bun.Server<WebSocketData>, req: Request)
   return server.upgrade(req, { data: { address, hostname, isOpened: false, userAgent, username } }) ? undefined : { address, hostname, res: [500, "Upgrade failed"] }
 }
 
-export const startServer = (account: Account, peers: Peers) => {
-  log('[SERVER] Starting Server')
-  Bun.build({
+const buildWebUI = async () => {
+  log('[SERVER] Building WebUI')
+  await Bun.build({
     conditions: ["browser", "module", "import"],
     define: { __CDN_URL__: 'https://cdn.jsdelivr.net/npm/@iplookup/country/', VERSION: JSON.stringify(version) },
     entrypoints: ["./dashboard/src/main.tsx"],
     outdir: "./dist",
     target: "browser",
-  }).then(build => log(`[SERVER] Dashboard ${build.success ? 'built successfully' : 'failed to build'}`))
-  .catch(err => error('ERROR:', '[SERVER] Failed to build dashboard', {err}))
+  })
+}
 
-  portForward(CONFIG.serverPort, 'Hydrabase (TCP)', 'TCP');
+export const startServer = async (account: Account, peers: Peers) => {
+  try {
+    await portForward(CONFIG.serverPort, 'Hydrabase (TCP)', 'TCP');
+  } catch (err) {
+    warn('WARN:', `[UPnP] Failed: ${(err as Error).message} - Ignore if manually port forwarded`)
+  }
+
+  await buildWebUI()
+
   const server = Bun.serve({
     fetch: async (req, server) =>  {
       const url = new URL(req.url)

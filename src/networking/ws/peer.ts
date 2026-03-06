@@ -5,7 +5,7 @@ import type { Account } from '../../Crypto/Account';
 import type { DB, Repositories } from "../../db";
 import type { MetadataPlugin } from "../../Metadata";
 import type Peers from "../../Peers";
-import type { NodeStats } from "../../StatsReporter";
+import type { NodeStats, Votes } from "../../StatsReporter";
 import type { WebSocketServerConnection } from "./server";
 
 import { CONFIG } from "../../config";
@@ -90,6 +90,7 @@ const getHistoricPeerConfidence = (db: DB, address: `0x${string}`, installedPlug
 }
 
 export class Peer {
+  public nonce = 0
   get address() {
     return this.socket.peer.address
   }
@@ -108,12 +109,13 @@ export class Peer {
   get plugins(): string[] {
     return getPlugins(this.db, this.address)
   }
+
   get rxTotal() {
-    return this._rx
+    return this._dl
   }
 
   get txTotal() {
-    return this._tx
+    return this._ul
   }
 
   get uptimeMs() {
@@ -128,14 +130,20 @@ export class Peer {
     return this.socket.peer.username
   }
 
-  private _rx = 0
+  get votes(): Votes {
+    return {
+      albums: 0,
+      artists: 0,
+      tracks: 0,
+    }
+  }
+  private _dl = 0
 
-  private _tx = 0
+  private _ul = 0
 
   private readonly HIP2_Conn_Message: HIP2_Conn_Message
 
   private readonly HIP4_Conn_Announce: HIP4_Conn_Announce
-
   private readonly requestManager: RequestManager
 
   private readonly handlers = {
@@ -143,7 +151,13 @@ export class Peer {
     peer_stats: (_data: { address: `0x${string}` }, nonce: number) => {
       if (this.address !== '0x0') return
       const peer_stats = collectPeerStats(this.db, _data.address, this.ownPlugins)
-      this.send(JSON.stringify({ nonce, peer_stats }))
+      this.send({ nonce, peer_stats })
+    },
+    ping: x => {
+      console.log(x, 'PING')
+    },
+    pong: x => {
+      console.log(x, 'PONG')
     },
     request: async <T extends Request['type']>(request: Request & { type: T }, nonce: number) => this.HIP2_Conn_Message.send.response(await this.searchNode(request.type, request.query, this.address === '0x0'), nonce),
     response: (response: Response, nonce: number) => { if (!this.requestManager.resolve(nonce, response)) warn('DEVWARN:', `[HIP2] Unexpected response nonce ${nonce} from ${this.socket.peer.address}`)}
@@ -158,12 +172,15 @@ export class Peer {
     // Log(`Creating peer ${socket.address} as ${socket instanceof WebSocketClient ? 'client' : 'server'}`)
     this.socket.onOpen(() => {
       this.startTime = Number(new Date())
+      setInterval(() => {
+        this.send({ nonce: this.nonce++, ping: Number(new Date()) })
+      }, 5_000)
     })
     this.socket.onClose(() => {
       this.requestManager.close()
     })
     this.socket.onMessage(async message => {
-      this._rx += message.length
+      this._dl += message.length
       const result = this.HIP2_Conn_Message.parseMessage(message)
       if (!result) return
       const { data, nonce, type } = result
@@ -183,14 +200,15 @@ export class Peer {
     return response;
   }
 
-  send(message: string) {
+  send<T extends Request['type']>(payload: ({ announce: Announce } | { peer_stats: PeerStats } | { ping: number } | { pong: number } | { request: Request & { type: T } } | { response: Response<T> } | { stats: NodeStats }) & { nonce: number }) {
+    const message = JSON.stringify(payload)
     if (!this.socket.isOpened) {
       warn('DEVWARN:', `[PEER] Cannot send request to unconnected peer ${this.socket.peer.address}`)
       return
     }
-    this._tx += message.length
+    this._ul += message.length
     this.socket.send(message)
   }
 
-  public readonly sendStats = (stats: NodeStats) => this.send(JSON.stringify({ stats }))
+  public readonly sendStats = (stats: NodeStats) => this.send({ nonce: this.nonce++, stats })
 }

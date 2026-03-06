@@ -23,6 +23,6 @@ export class HIP4_Conn_Announce {
   sendAnnounce(announce: Announce, address: `0x${string}`): void {
     if (this.peer.hostname === announce.hostname || this.peer.address === address) return
     log(`[HIP4] Announcing server ${announce.hostname} ${address}`)
-    this.peer.send(JSON.stringify({ announce }))
+    this.peer.send({ announce, nonce: this.peer.nonce++ })
   }
 }

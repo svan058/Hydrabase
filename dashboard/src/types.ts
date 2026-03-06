@@ -6,17 +6,11 @@ export interface EventEntry {
   t: string
 }
 
-export type FilterState = "all" | "connected" | "connecting" | "disconnected"
+export type FilterState = "all" | "connected" | "disconnected"
 
 export type PeerWithCountry = ApiPeer & {
   activity: number[]
   country: string
 };
-
-export interface VoteCounts {
-  albums: number
-  artists: number
-  tracks: number
-}
 
 export type WsState = "closed" | "connecting" | "error" | "open"

@@ -9,7 +9,7 @@ import { CONFIG } from './config'
 import { log, warn } from './log';
 import WebSocketClient from "./networking/ws/client";
 import { Peer } from "./networking/ws/peer";
-import { startServer, type WebSocketServerConnection } from './networking/ws/server'
+import { type WebSocketServerConnection } from './networking/ws/server'
 import { PeerMap } from './PeerMap';
 
 const cacheFile = Bun.file('./data/ws-servers.json')
@@ -74,10 +74,9 @@ export default class Peers {
   }
   private readonly peers = new PeerMap()
 
-  constructor(private readonly account: Account, private readonly metadataManager: MetadataManager, private readonly repos: Repositories, private readonly db: DB, private readonly search: <T extends Request['type']>(type: T, query: string, searchPeers?: boolean) => Promise<Response<T>>) {
-    startServer(account, this)
-  }
-// TODO: some mechanism to proactively propagate unsolicited votes
+  constructor(private readonly account: Account, private readonly metadataManager: MetadataManager, private readonly repos: Repositories, private readonly db: DB, private readonly search: <T extends Request['type']>(type: T, query: string, searchPeers?: boolean) => Promise<Response<T>>) {}
+
+  // TODO: some mechanism to proactively propagate unsolicited votes
   public add(socket: WebSocketClient | WebSocketServerConnection) {
     socket.onClose(() => this.peers.delete(socket.peer.address))
     const peer = new Peer(this.search, socket, this.account, this, this.repos, this.db, this.metadataManager.installedPlugins)
@@ -93,25 +92,37 @@ export default class Peers {
     this.announce(peer)
   }
 
-  public getConfidence(address: `0x${string}`): number { // TODO: Soulsync plugin - https://github.com/Nezreka/SoulSync/blob/main/Support/API.md
+public getConfidence(address: `0x${string}`): number { // TODO: Soulsync plugin - https://github.com/Nezreka/SoulSync/blob/main/Support/API.md
     const peer = this.peers.get(address)
     if (!peer) return 0
     return peer.historicConfidence // TODO: tit for tat
   }
-// TODO: endpoint soulsync can call with user feedback of "spotify result x is listenbrainz result y"
+
+  // TODO: endpoint soulsync can call with user feedback of "spotify result x is listenbrainz result y"
   public readonly has = (address: `0x${string}`) => address in this.peers
-
-  public async init() {
-    if (!(await cacheFile.exists())) return
-    const hostnames: `ws://${string}`[] = await cacheFile.json()
-    for (const hostname of hostnames) if (hostname && hostname !== 'ws://') WebSocketClient.init(this, this.account, hostname).then(socket => { if (socket) this.add(socket) })
-  } // TODO: time based confidence scores - older peers = more trustworthy
-
-  public isConnectionOpened(address: `0x${string}`): boolean {
+public isConnectionOpened(address: `0x${string}`): boolean {
     const peer = this.peers.get(address)
     if (!peer) return false
     return peer.isOpened
   }
+
+  public readonly isReady = async () => {
+    log('[PEERS] Waiting for first connection...')
+    await new Promise(res => {
+      const id = setInterval(() => {
+        if (this.count === 0) return
+        clearInterval(id)
+        res(undefined)
+      }, 1_000)
+    })
+  }
+
+  public async loadCache() {
+    log('[PEERS] Loading cached peers...')
+    if (!(await cacheFile.exists())) return
+    const hostnames: `ws://${string}`[] = await cacheFile.json()
+    for (const hostname of hostnames) if (hostname && hostname !== 'ws://') WebSocketClient.init(this, this.account, hostname).then(socket => { if (socket) this.add(socket) })
+  } // TODO: time based confidence scores - older peers = more trustworthy
 
   public async requestAll<T extends Request['type']>(request: Request & { type: T }, confirmedHashes: Set<bigint>, installedPlugins: Set<string>): Promise<Map<bigint, SearchResult[T]>> {
     const results = new Map<bigint, SearchResult[T] & { confidences: number[] }>()

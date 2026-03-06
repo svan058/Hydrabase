@@ -48,19 +48,19 @@ const Header = ({ onClose, peer }: { onClose: () => void; peer: PeerWithCountry 
       <Identicon address={peer.address} size={40} style={{ borderRadius: 6, marginTop: 2 }} />
       <div style={{ minWidth: 0 }}>
         <div style={{ alignItems: "center", display: "flex", gap: 8, marginBottom: 4 }}>
-          <StatusDot status={peer.status} />
-          <span style={{ color: peer.status === "connected" ? "#3fb950" : "#f85149", fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>{peer.status}</span>
+          <StatusDot status={peer.connection !== undefined} />
+          <span style={{ color: peer.connection === undefined ? "#f85149" : "#3fb950", fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>{peer.connection !== undefined}</span>
           <span style={{ fontSize: 14 }}>{toEmoji(peer.country)}</span>
         </div>
         <div onClick={copyAddr} style={{ color: ACCENT, cursor: "pointer", fontFamily: "monospace", fontSize: 12, overflowWrap: "break-word", wordBreak: "break-all" }} title="Click to copy">
           {peer.address}
           <span style={{ color: MUTED, fontSize: 10, marginLeft: 8 }}>{copied ? "✓ copied" : "⎘"}</span>
         </div>
-        <div style={{ color: MUTED, fontSize: 11, marginTop: 3 }}>ws://{peer.hostname}</div>
+        <div style={{ color: MUTED, fontSize: 11, marginTop: 3 }}>ws://{peer.connection?.hostname}</div>
       </div>
       <button onClick={onClose} style={{ background: "none", border: `1px solid ${BORD}`, borderRadius: 6, color: MUTED, cursor: "pointer", flexShrink: 0, fontSize: 16, height: 32, lineHeight: 1, width: 32 }}>✕</button>
     </div>
-    <ConfBar label="Historic Confidence" value={peer.confidence} />
+    <ConfBar label="Historic Confidence" value={peer.connection?.confidence ?? 0} />
   </div>
 }
 
@@ -71,10 +71,10 @@ const Section = ({ children, label }: { children: React.ReactNode; label: string
 
 const Statistics = ({ peer }: { peer: PeerWithCountry }) => <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr", marginBottom: 20 }}>
   {([
-    ["Latency", peer.latency ? `${(peer.latency).toFixed(1)}ms` : "—", peer.latency ? latColor(peer.latency) : MUTED],
-    ["Uptime", fmtUptime(peer.uptime), "#a5d6ff"],
-    ["↓ RX", fmtBytes(peer.rxTotal), ACCENT],
-    ["↑ TX", fmtBytes(peer.txTotal), "#f0883e"],
+    ["Latency", peer.connection?.latency ? `${(peer.connection?.latency ?? 0).toFixed(1)}ms` : "—", peer.connection?.latency ? latColor(peer.connection?.latency) : MUTED],
+    ["Uptime", fmtUptime(peer.connection?.uptime ?? 0), "#a5d6ff"],
+    ["↑ UL", fmtBytes(peer.connection?.totalUL ?? 0), "#f0883e"],
+    ["↓ DL", fmtBytes(peer.connection?.totalDL ?? 0), ACCENT],
   ] as [string, string, string][]).map(([l, v, c]) => <div key={l} style={{ background: BG, borderRadius: 7, padding: "10px 12px" }}>
     <div style={{ color: MUTED, fontSize: 9, letterSpacing: ".1em", marginBottom: 5, textTransform: "uppercase" }}>{l}</div>
     <div style={{ color: c, fontSize: 18, fontWeight: 700 }}>{v}</div>
@@ -83,7 +83,7 @@ const Statistics = ({ peer }: { peer: PeerWithCountry }) => <div style={{ displa
 
 const Reputation = ({ data, peer }: { data: PeerStats; peer: PeerWithCountry }) => {
   const totalVotes = data.votes.tracks + data.votes.artists + data.votes.albums
-  const accuracy = (data.totalMatches + data.totalMismatches) > 0 ? data.totalMatches / (data.totalMatches + data.totalMismatches) : peer.confidence
+  const accuracy = (data.totalMatches + data.totalMismatches) > 0 ? data.totalMatches / (data.totalMatches + data.totalMismatches) : peer.connection?.confidence ?? 0
   return <Section label="Reputation">
     <Row label="Total Votes Observed" value={String(totalVotes)} />
     <Row color={MUTED} label="  Tracks" value={String(data.votes.tracks)} />
@@ -101,7 +101,7 @@ const Peer = ({ data, loading, onClose, peer, wsError }: { data: null | PeerStat
     <Header onClose={onClose} peer={peer} />
     <div style={{ flex: 1, padding: "16px 20px" }}>
       <Statistics peer={peer} />
-      <Section label="Plugins"><div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{peer.plugins.length > 0 ? peer.plugins.map((pl) => <Tag active key={pl} label={pl} />) : <span style={{ color: MUTED, fontSize: 11 }}>No plugins reported</span>}</div></Section>
+      <Section label="Plugins"><div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{(peer.connection?.plugins.length ?? 0) > 0 ? peer.connection?.plugins.map((pl) => <Tag active key={pl} label={pl} />) : <span style={{ color: MUTED, fontSize: 11 }}>No plugins reported</span>}</div></Section>
       {loading && <div style={{ color: MUTED, fontSize: 11, padding: "20px 0", textAlign: "center" }}>Loading peer stats…</div>}
       {wsError && !loading && <div style={{ color: "#f85149", fontSize: 11, padding: "20px 0", textAlign: "center" }}>{wsError}</div>}
       {data && !loading && <>

@@ -21,9 +21,9 @@ const Item = ({ label, value, valueColor }: { label: string; value: string; valu
 </span>
 
 export const StatusBar = ({ dhtNodes, peers, uptime, wsState }: Props) => {
-  const connCount = peers.filter(p => p.status === "connected").length
-  const totalRx = peers.reduce((a, p) => a + p.rxTotal, 0)
-  const totalTx = peers.reduce((a, p) => a + p.txTotal, 0)
+  const connCount = peers.filter(p => p.connection !== undefined).length
+  const totalUL = peers.reduce((a, p) => a + (p.connection?.totalUL ?? 0), 0)
+  const totalDL = peers.reduce((a, p) => a + (p.connection?.totalDL ?? 0), 0)
   return <div style={{ alignItems: "center", background: "#010409", borderTop: `1px solid ${BORD}`, bottom: 0, display: "flex", gap: 12, height: 28, left: 0, padding: "0 14px", position: "fixed", right: 0, zIndex: 48 }}>
     <SocketStatus state={wsState} />
     <Sep />
@@ -31,9 +31,9 @@ export const StatusBar = ({ dhtNodes, peers, uptime, wsState }: Props) => {
     <Sep />
     <Item label="DHT" value={String(dhtNodes.length)} valueColor={ACCENT} />
     <Sep />
-    <Item label="↓" value={fmtBytes(totalRx)} valueColor="#3fb950" />
+    <Item label="↑" value={fmtBytes(totalUL)} valueColor="#f0883e" />
     <Sep />
-    <Item label="↑" value={fmtBytes(totalTx)} valueColor="#f0883e" />
+    <Item label="↓" value={fmtBytes(totalDL)} valueColor="#3fb950" />
     <Sep />
     <Item label="uptime" value={fmtClock(uptime)} />
     <span style={{ background: "#21262d", border: `1px solid ${BORD}`, borderRadius: 3, color: MUTED, fontSize: 9, letterSpacing: ".05em", marginLeft: "auto", padding: "1px 5px" }}>v{VERSION}</span>

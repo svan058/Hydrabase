@@ -47,6 +47,7 @@ export default tseslint.config(
       "no-inline-comments": "off",
       "no-magic-numbers": "off",
       "no-nested-ternary": "off",
+      "no-new": "off",
       "no-plusplus": "off",
       "no-redeclare": "off",
       "no-shadow": "off",
