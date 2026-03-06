@@ -1,3 +1,4 @@
+import type { NodeStats } from "../../../src/StatsReporter"
 import type { PeerWithCountry } from "../types"
 
 import { ACCENT, BORD, MUTED, TEXT } from "../theme"
@@ -13,10 +14,10 @@ const NAV_ITEMS: { icon: string; label: string; tab: Tab; }[] = [
   { icon: "✦", label: "Votes", tab: "votes" },
 ]
 
-export const Sidebar = ({ peers, selfAddr, setTab, tab, uptime }: { peers: PeerWithCountry[]; selfAddr: `0x${string}`; setTab: React.Dispatch<React.SetStateAction<Tab>>; tab: Tab; uptime: number }) => {
-  const totalRx = peers.reduce((a, p) => a + p.rxTotal, 0)
-  const totalTx = peers.reduce((a, p) => a + p.txTotal, 0)
-  const connCount = peers.filter(p => p.status === "connected").length
+export const Sidebar = ({ peers, setTab, stats, tab, uptime }: { peers: PeerWithCountry[]; setTab: React.Dispatch<React.SetStateAction<Tab>>; stats: NodeStats | null; tab: Tab; uptime: number }) => {
+  const totalRx = peers.reduce((a, p) => a + (p.connection?.totalDL ?? 0), 0)
+  const totalTx = peers.reduce((a, p) => a + (p.connection?.totalUL ?? 0), 0)
+  const connCount = peers.filter(p => p.connection !== undefined).length
   return <div style={{ background: "#010409", borderRight: `1px solid ${BORD}`, display: "flex", flexDirection: "column", flexShrink: 0, height: "calc(100vh - 48px)", position: "sticky", top: 0, width: 196 }}>
     <div style={{ borderBottom: `1px solid ${BORD}`, padding: "16px 16px 14px" }}>
       {/* // TODO: Logo */}
@@ -40,7 +41,7 @@ export const Sidebar = ({ peers, selfAddr, setTab, tab, uptime }: { peers: PeerW
           <span style={{ color: c, fontFamily: "monospace", fontSize: 10, fontWeight: 600 }}>{v}</span>
         </div>
       ))}
-      <div style={{ borderTop: `1px solid ${BORD}`, color: MUTED, fontFamily: "monospace", fontSize: 9, marginTop: 8, paddingTop: 8, wordBreak: "break-all" }}>{shortAddr(selfAddr)}</div>
+      <div style={{ borderTop: `1px solid ${BORD}`, color: MUTED, fontFamily: "monospace", fontSize: 9, marginTop: 8, paddingTop: 8, wordBreak: "break-all" }}>{shortAddr(stats?.self.address)}</div>
     </div>
   </div>
 }

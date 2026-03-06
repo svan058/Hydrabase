@@ -30,6 +30,9 @@ services:
       # PUID: 1000
       # PGID: 1000
 
+      # Advanced:
+      # REQUIRE_DHT_CONNECTION: true
+
       # Uncomment to enable Spotify plugin:
       # SPOTIFY_CLIENT_ID: $SPOTIFY_CLIENT_ID
       # SPOTIFY_CLIENT_SECRET: $SPOTIFY_CLIENT_SECRET

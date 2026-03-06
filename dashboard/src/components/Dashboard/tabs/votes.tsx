@@ -1,21 +1,19 @@
-import type { PeerWithCountry, VoteCounts } from "../../../types";
+import type { Connection, NodeStats, Votes } from "../../../../../src/StatsReporter";
+import type { PeerWithCountry } from "../../../types";
 
 import { ACCENT, BORD, MUTED, panel } from "../../../theme";
 import { PanelHeader } from "../../PanelHeader";
 
 interface Props {
-  installedPlugins: string[]
-  knownPlugins: string[]
-  peerData: VoteCounts
   peers: PeerWithCountry[]
-  votes: VoteCounts
+  stats: NodeStats | null
 }
 
-const Header = ({ peerData, votes }: { peerData: VoteCounts, votes: VoteCounts }) => {
+const Header = ({ peerVotes, selfVotes }: { peerVotes: Votes, selfVotes: Votes }) => {
   const rows = [
-    ["Tracks", votes.tracks, votes.tracks+peerData.tracks, "#bc8cff"],
-    ["Albums", votes.albums, votes.albums+peerData.albums, "#56d364"],
-    ["Artists", votes.artists, votes.artists+peerData.artists, "#ff9bce"],
+    ["Tracks", selfVotes.tracks, selfVotes.tracks+peerVotes.tracks, "#bc8cff"],
+    ["Albums", selfVotes.albums, selfVotes.albums+peerVotes.albums, "#56d364"],
+    ["Artists", selfVotes.artists, selfVotes.artists+peerVotes.artists, "#ff9bce"],
   ] as const;
 
   return <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
@@ -38,16 +36,16 @@ const Header = ({ peerData, votes }: { peerData: VoteCounts, votes: VoteCounts }
   </div>
 }
 
-export const VotesTab = ({ installedPlugins, knownPlugins, peerData, peers, votes }: Props) => {
-  const onlinePeerCount = peers.filter(peer => peer.uptime !== 0).length
+export const VotesTab = ({ peers, stats }: Props) => {
+  const onlinePeerCount = peers.filter(peer => peer.connection?.uptime !== 0).length
   return <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-    <Header peerData={peerData} votes={votes} />
+    <Header peerVotes={(peers.map(({connection}) => connection).filter(Boolean) as Connection[]).map(conn => conn.votes).reduce((acc, votes) => ({ albums: acc.albums + votes.albums, artists: acc.artists + votes.artists, tracks: acc.tracks + votes.tracks }), { albums: 0, artists: 0, tracks: 0 })} selfVotes={stats?.self.votes ?? { albums: 0, artists: 0, tracks: 0 }} />
     <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
       <div style={panel()}>
         <PanelHeader label="Plugins" />
         <div style={{ padding: "10px 0" }}>
-          {knownPlugins.map((pl) => {
-            const on = installedPlugins.includes(pl);
+          {stats?.peers.plugins.map(pl => {
+            const on = stats.self.plugins.includes(pl);
             return <div key={pl} style={{ alignItems: "center", borderBottom: `1px solid ${BORD}`, display: "flex", justifyContent: "space-between", padding: "10px 16px" }}>
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 2 }}>{pl}</div>
@@ -61,8 +59,8 @@ export const VotesTab = ({ installedPlugins, knownPlugins, peerData, peers, vote
       <div style={panel()}>
         <PanelHeader label="Plugin Coverage" />
         <div style={{ padding: "12px 16px" }}>
-          {knownPlugins.map((pl) => {
-            const n = peers.filter((p) => p.plugins.includes(pl)).length;
+          {stats?.peers.plugins.map(pl => {
+            const n = peers.filter(p => p.connection?.plugins.includes(pl)).length;
             return <div key={pl} style={{ marginBottom: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                 <span style={{ fontSize: 12 }}>{pl}</span>

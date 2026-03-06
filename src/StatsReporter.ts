@@ -9,37 +9,42 @@ import { error } from './log'
 
 export interface ApiPeer {
   address: `0x${string}`
+  connection: Connection | undefined
+}
+
+export interface Connection {
   confidence: number
-  hostname: string | undefined
+  hostname: string
   latency: number
   plugins: string[]
-  rxTotal: number
-  status: 'connected' | 'disconnected'
-  txTotal: number
+  totalDL: number
+  totalUL: number
   uptime: number
   userAgent: string
   username: string
+  votes: Votes
 }
 
 export interface NodeStats {
-  address: `0x${string}`
-  connectedPeers: number
   dhtNodes: string[]
-  installedPlugins: string[]
-  knownPeers: `0x${string}`[]
-  knownPlugins: string[]
-  peerData: {
-    albums: number
-    artists: number
-    tracks: number
+  peers: {
+    known: ApiPeer[]
+    plugins: string[]
+    votes: Votes
   }
-  peers: ApiPeer[]
+  self: {
+    address: `0x${string}`
+    hostname: `ws://${string}`
+    plugins: string[]
+    votes: Votes
+  }
   timestamp: string
-  votes: {
-    albums: number
-    artists: number
-    tracks: number
-  }
+}
+
+export interface Votes {
+  albums: number
+  artists: number
+  tracks: number
 }
 
 const countVotesSql = (table: 'albums' | 'artists' | 'tracks') => sql.raw(`SELECT COUNT(*) AS n FROM ${table} WHERE address = '0x0'`)
@@ -48,59 +53,78 @@ const countPeerSql = (table: 'albums' | 'artists' | 'tracks') => sql.raw(`SELECT
 export class StatsReporter {
   constructor(
     private readonly address: `0x${string}`,
+    private readonly hostname: `ws://${string}`,
     private readonly plugins: MetadataPlugin[],
     private readonly peers: Peers,
     private readonly dht: DHT_Node,
     private readonly db: DB,
     private readonly intervalMs = 10_000
   ) {
+    this.report()
     setInterval(() => this.report(), this.intervalMs)
   }
 
-  public async init(): Promise<void> {
-    await this.report()
-  }
-
-  private async collectStats(): Promise<NodeStats> {
+  private collectStats(): NodeStats {
     const countRow = (rawSql: ReturnType<typeof sql.raw>) => this.db.all<{ n: number }>(rawSql)[0]?.n ?? 0
 
     return {
-      address: this.address,
-      connectedPeers: this.peers.count,
       dhtNodes: this.dht.nodes.map(({host,port}) => `${host}:${port}`),
-      installedPlugins: this.plugins.map(p => p.id),
-      knownPeers: this.knownPeers().filter(a => a !== '0x0'),
-      knownPlugins: this.knownPlugins(),
-      peerData: {
-        albums:  countRow(countPeerSql('albums')),
-        artists: countRow(countPeerSql('artists')),
-        tracks:  countRow(countPeerSql('tracks')),
+      peers: {
+        known: this.knownPeers(),
+        plugins: this.knownPlugins(),
+        votes: {
+          albums:  countRow(countPeerSql('albums')),
+          artists: countRow(countPeerSql('artists')),
+          tracks:  countRow(countPeerSql('tracks')),
+        }
       },
-      peers: await Promise.all(this.peers.connectedPeers.entries().filter(([,peer]) => peer.address !== '0x0')
-        .map(([, { address, averageLatencyMs, historicConfidence, hostname, isOpened, plugins, rxTotal, txTotal, uptimeMs, userAgent, username }]) => (
-          { address, confidence: historicConfidence, hostname, latency: averageLatencyMs, plugins, rxTotal, status: isOpened ? 'connected' as const : 'disconnected' as const, txTotal, uptime: uptimeMs, userAgent, username }
-        ))),
+      self: {
+        address: this.address,
+        hostname: this.hostname,
+        plugins: this.plugins.map(p => p.id),
+        votes: {
+          albums:  countRow(countVotesSql('albums')),
+          artists: countRow(countVotesSql('artists')),
+          tracks:  countRow(countVotesSql('tracks')),
+        },
+      },
       timestamp: new Date().toISOString(),
-      votes: {
-        albums:  countRow(countVotesSql('albums')),
-        artists: countRow(countVotesSql('artists')),
-        tracks:  countRow(countVotesSql('tracks')),
-      },
     }
   }
 
-  private readonly knownPeers = (): `0x${string}`[] => this.db.all<{ address: `0x${string}` }>(sql.raw(`SELECT DISTINCT address FROM tracks
-    UNION SELECT DISTINCT address FROM artists
-    UNION SELECT DISTINCT address FROM albums`)).map(r => r.address)
+  private readonly knownPeers = (): ApiPeer[] => {
+    const addresses = this.db.all<{ address: `0x${string}` }>(sql.raw(`SELECT DISTINCT address FROM tracks
+      UNION SELECT DISTINCT address FROM artists
+      UNION SELECT DISTINCT address FROM albums`)).map(r => r.address)
+    return addresses.map(address => ({
+      address,
+      connection: ((): Connection | undefined => {
+        const peer = this.peers.connectedPeers.find(peer => peer.address === address)
+        if (!peer) return peer
+        return {
+          confidence: peer.historicConfidence,
+          hostname: peer.hostname,
+          latency: peer.averageLatencyMs,
+          plugins: peer.plugins,
+          totalDL: peer.rxTotal,
+          totalUL: peer.txTotal,
+          uptime: peer.uptimeMs,
+          userAgent: peer.userAgent,
+          username: peer.username,
+          votes: peer.votes
+        }
+      })(),
+    } satisfies ApiPeer))
+  }
 
   private readonly knownPlugins = (): string[] => this.db.all<{ plugin_id: string }>(sql.raw(`SELECT DISTINCT plugin_id FROM tracks
     UNION SELECT DISTINCT plugin_id FROM artists
     UNION SELECT DISTINCT plugin_id FROM albums`)).map(r => r.plugin_id)
 
-  private async report(): Promise<void> {
+  private report(): void {
     const client = this.peers.apiPeer
     try {
-      if (client?.isOpened) client.sendStats(await this.collectStats())
+      if (client?.isOpened) client.sendStats(this.collectStats())
     } catch (err) {
       error('ERROR:', '[STATS] Failed to collect/send stats', {err})
     }

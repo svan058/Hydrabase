@@ -10,6 +10,8 @@ export const PeerStatsRequestSchema = z.object({ address: z.string().regex(/^0x/
 
 const MessageSchemas = {
   announce: AnnounceSchema,
+  ping: z.object({ ping: z.number() }),
+  pong: z.object({ pong: z.number() }),
   request: RequestSchema,
   response: ResponseSchema
 }
@@ -22,13 +24,13 @@ export class HIP2_Conn_Message {
     request: async <T extends Request['type']>(request: Request & { type: T }): Promise<Response<T>> => {
       const { nonce, promise } = this.requestManager.register<T>()
       log(`[HIP2] Sending request ${nonce} to peer ${this.peer.username} ${this.peer.address}`)
-      this.peer.send(JSON.stringify({ nonce, request }))
+      this.peer.send({ nonce, request })
       const results = await promise
       if (!results) return []
       log(`[HIP2] Received ${results.length} results from ${this.peer.username} ${this.peer.address}`)
       return results
     },
-    response: <T extends Request['type']>(response: Response<T>, nonce: number) => this.peer.send(JSON.stringify({ nonce, response }))
+    response: <T extends Request['type']>(response: Response<T>, nonce: number) => this.peer.send({ nonce, response })
   }
 
   constructor(private readonly peer: Peer, private readonly requestManager: RequestManager) {}
