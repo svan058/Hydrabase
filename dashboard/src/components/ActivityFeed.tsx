@@ -2,7 +2,7 @@ import { useState } from "react"
 
 import type { EventEntry } from "../types"
 
-import { BORD, MUTED, TEXT, ACCENT } from "../theme"
+import { ACCENT, BORD, MUTED, TEXT } from "../theme"
 
 interface Props {
   eventLog: EventEntry[]
@@ -33,7 +33,7 @@ export const ActivityFeed = ({ eventLog }: Props) => {
       <span style={{ animation: "blink 2s infinite", background: "#3fb950", borderRadius: "50%", boxShadow: "0 0 5px #3fb950", display: "inline-block", flexShrink: 0, height: 5, width: 5 }} />
       {latest ? <>
         <span style={{ color: LV_COLOR[latest.lv] ?? ACCENT, flexShrink: 0, fontSize: 9, fontWeight: 700, letterSpacing: ".06em" }}>{latest.lv}</span>
-        <span style={{ color: MUTED, flex: 1, fontSize: 11, fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{latest.m}</span>
+        <span style={{ color: MUTED, flex: 1, fontFamily: "monospace", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{latest.m}</span>
         <span style={{ color: MUTED, flexShrink: 0, fontFamily: "monospace", fontSize: 10 }}>{latest.t}</span>
       </> : <span style={{ color: MUTED, fontFamily: "monospace", fontSize: 11 }}>Waiting for events…</span>}
       <span style={{ color: MUTED, flexShrink: 0, fontSize: 10, marginLeft: 6, transform: expanded ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▲</span>

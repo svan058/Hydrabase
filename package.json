@@ -15,7 +15,6 @@
     "eslint": "^10.0.2",
     "eslint-plugin-perfectionist": "^5.6.0",
     "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-sonarjs": "^4.0.0",
     "eslint-plugin-unicorn": "^63.0.0",
     "globals": "^17.3.0",
     "jiti": "^2.6.1",

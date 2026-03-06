@@ -9,8 +9,8 @@ type Props = SearchResultsProps & {
   searchError: null | string
   searchQuery: string
   setSearchQuery: (q: string) => void
-  setSearchType: (t: Request['type']) => void
   setSearchResults: (searchResults: null | unknown[]) => void
+  setSearchType: (t: Request['type']) => void
 }
 
 interface SearchResultsProps {
@@ -138,7 +138,7 @@ const SearchResults = ({ onTogglePlay, playingId, searchElapsed, searchLoading, 
   </>
 }
 
-export const SearchTab = ({ onSearch, onTogglePlay, playingId, searchElapsed, searchError, searchLoading, searchQuery, searchResults, setSearchResults, searchType, setSearchQuery, setSearchType }: Props) => {
+export const SearchTab = ({ onSearch, onTogglePlay, playingId, searchElapsed, searchError, searchLoading, searchQuery, searchResults, searchType, setSearchQuery, setSearchResults, setSearchType }: Props) => {
   const [selected, setSelected] = useState<null | SearchResult[keyof SearchResult]>(null)
   const handleSearch = () => {
     setSelected(null)
