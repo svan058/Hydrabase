@@ -195,7 +195,6 @@ export class Peer {
       log(`[PEERS] Received message ${message}`)
       this._dl += message.length
       const result = this.HIP2_Conn_Message.parseMessage(message)
-      console.log(result)
       if (!result) return
       const { data, nonce, type } = result
       await this.handlers[type](data, nonce)
