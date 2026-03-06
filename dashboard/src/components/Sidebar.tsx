@@ -32,8 +32,8 @@ export const Sidebar = ({ peers, setTab, stats, tab, uptime }: { peers: PeerWith
     </nav>
     <div style={{ borderTop: `1px solid ${BORD}`, padding: "12px 16px" }}>
       {([
-        ["↓ RX", fmtBytes(totalRx), ACCENT],
-        ["↑ TX", fmtBytes(totalTx), "#f0883e"],
+        ["↑ UL", fmtBytes(totalTx), "#f0883e"],
+        ["↓ DL", fmtBytes(totalRx), ACCENT],
         ["uptime", fmtClock(uptime), MUTED],
       ] as [string, string, string][]).map(([l, v, c]) => (
         <div key={l} style={{ alignItems: "center", display: "flex", justifyContent: "space-between", marginBottom: 5 }}>

@@ -9,7 +9,7 @@ import type { NodeStats, Votes } from "../../StatsReporter";
 import type { WebSocketServerConnection } from "./server";
 
 import { CONFIG } from "../../config";
-import { warn } from "../../log";
+import { log, warn } from "../../log";
 import { HIP2_Conn_Message } from "../../protocol/HIP2/message";
 import { type Announce, HIP4_Conn_Announce } from "../../protocol/HIP4/announce";
 import { type Album, type Artist, type Request, RequestManager, type Response, type Track } from "../../RequestManager";
@@ -154,10 +154,10 @@ export class Peer {
       this.send({ nonce, peer_stats })
     },
     ping: x => {
-      console.log(x, 'PING')
+      log('[PING] TODO: send pong')
     },
     pong: x => {
-      console.log(x, 'PONG')
+      log('[PONG] TODO: log latency')
     },
     request: async <T extends Request['type']>(request: Request & { type: T }, nonce: number) => this.HIP2_Conn_Message.send.response(await this.searchNode(request.type, request.query, this.address === '0x0'), nonce),
     response: (response: Response, nonce: number) => { if (!this.requestManager.resolve(nonce, response)) warn('DEVWARN:', `[HIP2] Unexpected response nonce ${nonce} from ${this.socket.peer.address}`)}
@@ -203,7 +203,7 @@ export class Peer {
   send<T extends Request['type']>(payload: ({ announce: Announce } | { peer_stats: PeerStats } | { ping: number } | { pong: number } | { request: Request & { type: T } } | { response: Response<T> } | { stats: NodeStats }) & { nonce: number }) {
     const message = JSON.stringify(payload)
     if (!this.socket.isOpened) {
-      warn('DEVWARN:', `[PEER] Cannot send request to unconnected peer ${this.socket.peer.address}`)
+      warn('DEVWARN:', `[PEER] Cannot send ${Object.keys(payload).join(',')} to unconnected peer ${this.socket.peer.address}`)
       return
     }
     this._ul += message.length

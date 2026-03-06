@@ -58,8 +58,8 @@ export default class WebSocketClient {
   }
 
   send(data: string) {
-    if (this._isOpened) {this.socket.send(data)}
-    else {this.retryQueue.push(() => this.socket.send(data))}
+    if (this._isOpened) this.socket.send(data)
+    else this.retryQueue.push(() => this.socket.send(data))
   }
 
   private _connect(account: Account) {

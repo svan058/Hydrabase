@@ -100,21 +100,23 @@ public getConfidence(address: `0x${string}`): number { // TODO: Soulsync plugin 
 
   // TODO: endpoint soulsync can call with user feedback of "spotify result x is listenbrainz result y"
   public readonly has = (address: `0x${string}`) => address in this.peers
-public isConnectionOpened(address: `0x${string}`): boolean {
-    const peer = this.peers.get(address)
-    if (!peer) return false
-    return peer.isOpened
-  }
-
-  public readonly isReady = async () => {
-    log('[PEERS] Waiting for first connection...')
+public readonly isConnected = async () => {
+    let i = 0
     await new Promise(res => {
       const id = setInterval(() => {
+        i++
+        if (i % 10 === 0) warn('WARN:', '[PEERS] Waiting for first connection...')
         if (this.count === 0) return
         clearInterval(id)
         res(undefined)
       }, 1_000)
     })
+  }
+
+  public isConnectionOpened(address: `0x${string}`): boolean {
+    const peer = this.peers.get(address)
+    if (!peer) return false
+    return peer.isOpened
   }
 
   public async loadCache() {

@@ -8,7 +8,7 @@ import { Identicon } from "../../Identicon"
 import { NetworkPulseCanvas } from "../../Pulse"
 import { StatCard } from "../../StatCard"
 
-interface BwPoint { rx: number; tx: number }
+interface BwPoint { dl: number; ul: number }
 
 interface Props {
   bwHistory: BwPoint[]
