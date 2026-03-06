@@ -185,7 +185,7 @@ export class Peer {
       this.startTime = Number(new Date())
       id = setInterval(() => {
         this.send({ nonce: this.nonce++, ping: { time: Number(new Date()) } })
-      }, 5_000)
+      }, 60_000)
     })
     this.socket.onClose(() => {
       this.requestManager.close()
@@ -195,7 +195,6 @@ export class Peer {
       log(`[PEERS] Received message ${message}`)
       this._dl += message.length
       const result = this.HIP2_Conn_Message.parseMessage(message)
-      console.log(result)
       if (!result) return
       const { data, nonce, type } = result
       await this.handlers[type](data, nonce)

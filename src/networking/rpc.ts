@@ -21,7 +21,7 @@ export const startRPC = (peers: Peers) => {
 
     if (q === `${CONFIG.rpcPrefix}_msg`) {
       const message = query.a?.['d']?.toString()
-      log(`[RPC] Received message ${q} from ${key}`, {message})
+      log(`[RPC] Received message ${q} from ${key}`)
       if (message) {
         const connection = connections.get(key)
         if (connection) {
@@ -33,7 +33,7 @@ export const startRPC = (peers: Peers) => {
         }
       }
       rpc.response({ ...node, host: node.address }, query, { ok: 1 })
-    } else log(`[RPC] Received message from ${key}: ${q}`, {query})
+    } else warn('DEVWARN:', `[RPC] Received message from ${key}: ${q}`, {query})
   })
 
   return { rpc, socket }
@@ -55,7 +55,7 @@ export class RPC implements Socket {
     this.peer = { address: `0x${Math.ceil(Math.random()*10000)}`, hostname, userAgent: 'Hydrabase/DHT', username: 'DHT Test' }
     setTimeout(() => this.openHandler?.(), 5_000)
     connections.set(`${this.node.host}:${this.node.port}`, this)
-  }
+  } // TODO: authenticate peer
 
   public readonly close = () => {
     // This.isOpened = false
