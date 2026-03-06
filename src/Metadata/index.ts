@@ -6,6 +6,7 @@ import type { Album, Artist, Request, Response, Track } from '../RequestManager'
 
 import { CONFIG } from '../config';
 import { log, warn } from '../log';
+import { SafeMetadataPlugin } from './SafeMetadataPlugin';
 
 export const TrackSearchResultSchema = z.object({
   address: z.string().startsWith('0x').transform(v => v as `0x${string}`),
@@ -102,24 +103,27 @@ const matchId = (items: (Album | Artist)[], peers: Peers): undefined | { confide
 // TODO: peer confidence score exchange - announce peer confidence scores to help bootstrap new nodes faster
   if (!confidences.size) return undefined
   const id = [...confidences.entries()].reduce((a, b) => !a || b[1] > a[1] ? b : a, [...confidences.entries()][0])
-  return { confidence: id[1], id: id[0] }
+  return id ? { confidence: id[1], id: id[0] } : undefined
 }
 
 export default class MetadataManager implements MetadataPlugin {
   public readonly id = 'Hydrabase'
-  public get installedPlugins(): MetadataPlugin[] { return this.plugins }
+  public get installedPlugins(): SafeMetadataPlugin[] { return this.plugins }
+  private readonly plugins: SafeMetadataPlugin[]
 
-  constructor(private readonly plugins: MetadataPlugin[], private readonly db: Repositories) {}
+  constructor(plugins: MetadataPlugin[], private readonly db: Repositories) {
+    this.plugins = plugins.map(plugin => new SafeMetadataPlugin(plugin))
+  }
 
   private static merge<T extends { address: `0x${string}`; soul_id: string, }>(primary: T[], secondary: T[]): T[] {
     const seen = new Set(primary.map(r => `${r.soul_id}:${r.address}`))
     return [...primary, ...secondary.filter(r => !seen.has(`${r.soul_id}:${r.address}`))]
-  }
+  } // TODO: plugin error handling so searches continue even if 1 plugin fails
 
   async albumTracks(albumSoulId: string, peers: Peers): Promise<Response<'album.tracks'>> {
     const albums = this.db.album.lookupBySoulId(albumSoulId)
     const albumIds = new Map<string, string>()
-    const pluginResults = (await Promise.all(this.plugins.map(async p => {
+    const pluginResults = await Promise.all(this.plugins.map(async p => {
       const pluginAlbums = albums.filter(({plugin_id}) => plugin_id === p.id)
       const {id} = pluginAlbums.find(({address}) => address === '0x0') ?? {}
       if (id) {
@@ -133,7 +137,7 @@ export default class MetadataManager implements MetadataPlugin {
         return (await p.albumTracks(bestId.id, peers)).map(result => ({ ...result, confidence: (result.confidence+bestId.confidence)/2, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` }))
       }
       return []
-    })))
+    }))
     const results = pluginResults.flat().map(result => ({ ...result, address: '0x0' as const }))
     for (const result of results) {this.db.track.upsertFromPlugin(result)}
     const cached = this.db.track.lookupByArtistIds(albumIds)

@@ -12,11 +12,11 @@ const Pulse = ({ canvasRef }: { canvasRef: React.RefObject<HTMLCanvasElement | n
     <div style={{ alignItems: "center", display: "flex", gap: 10 }}>
       <span style={{ alignItems: "center", color: ACCENT, display: "flex", fontSize: 10, gap: 4 }}>
         <span style={{ background: ACCENT, borderRadius: 2, display: "inline-block", height: 2, width: 12 }} />
-        RX
+        DL
       </span>
       <span style={{ alignItems: "center", color: ORANGE, display: "flex", fontSize: 10, gap: 4 }}>
         <span style={{ background: ORANGE, borderRadius: 2, display: "inline-block", height: 2, width: 12 }} />
-        TX
+        UL
       </span>
     </div>
   </div>

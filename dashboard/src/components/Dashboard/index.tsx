@@ -21,14 +21,13 @@ import { PeersTab } from "./tabs/Peers"
 import { SearchTab } from "./tabs/Search"
 import { VotesTab } from "./tabs/votes"
 
-export interface BwPoint { rx: number; tx: number }
+export interface BwPoint { dl: number; ul: number }
 
 const BW_HISTORY_LEN = 300
 const nonce = Math.random()
 
 const filterPeers = (peers: PeerWithCountry[], filter: FilterState) => [...peers].filter((p) => filter === "all" || (p.connection === undefined && filter === 'disconnected') || (p.connection !== undefined && filter === 'connected'))
 
-// ─── Dashboard ─────────────────────────────────────────────────────────────────
 export const Dashboard = ({ apiKey, socket }: { apiKey: string; socket: string }) => {
   const [wsState, setWsState] = useState<WsState>("connecting")
   const [peers, setPeers] = useState<PeerWithCountry[]>([])
@@ -51,6 +50,7 @@ export const Dashboard = ({ apiKey, socket }: { apiKey: string; socket: string }
   const [sel, setSel] = useState<null | PeerWithCountry>(null)
   const [filter, setFilter] = useState<FilterState>("all")
   const [stats, setStats] = useState<NodeStats | null>(null)
+  const [dhtNodeCounts, setDhtNodeCounts] = useState<number[]>([])
 
   const onPeerStatsRef = useRef<({ nonce, peer_stats }: { nonce: number; peer_stats: PeerStats, }) => void>(() => {})
   const wsRef = useRef<undefined | WebSocket>(undefined)
@@ -61,6 +61,7 @@ export const Dashboard = ({ apiKey, socket }: { apiKey: string; socket: string }
 
   const applyStats = useCallback((stats: NodeStats) => {
     setStats(stats)
+    setDhtNodeCounts(prev => ([...prev, stats.dhtNodes.length]))
     setPeers(stats.peers.known.map(peer => ({ ...peer, activity: [], country: 'AU' })))
     Promise.all(stats.dhtNodes.map(async (host) => ({ country: await getCountry((host.split(":") as [string, string])[0]), host })))
       .then((nodes) => setDhtNodes(nodes))
@@ -70,7 +71,7 @@ export const Dashboard = ({ apiKey, socket }: { apiKey: string; socket: string }
     const dlDelta = Math.max(0, totalDL - prevTotalsRef.current.DL)
     const ulDelta = Math.max(0, totalUL - prevTotalsRef.current.UL)
     prevTotalsRef.current = { DL: totalDL, UL: totalUL }
-    setBwHistory(prev => [...prev.slice(1 - BW_HISTORY_LEN), { DL: dlDelta, UL: ulDelta }])
+    setBwHistory(prev => [...prev.slice(1 - BW_HISTORY_LEN), { dl: dlDelta, ul: ulDelta }])
 
     addLog("INFO", 'Received stats')
   }, [addLog])
@@ -172,7 +173,7 @@ export const Dashboard = ({ apiKey, socket }: { apiKey: string; socket: string }
     <div style={{ animation: "fadein .3s ease", flex: 1, minWidth: 0, padding: "14px 16px 70px" }}>
       {tab === "overview" && <OverviewTab bwHistory={bwHistory} peers={peers} sel={sel} setSel={setSel} stats={stats} />}
       {tab === "peers" && <PeersTab filter={filter} sel={sel} setFilter={setFilter} setSel={setSel} sorted={filterPeers(peers, filter)} />}
-      {tab === "dht" && <DhtTab dhtNodes={dhtNodes} socket={socket} stats={stats} tLabels={tLabels} wsState={wsState} />}
+      {tab === "dht" && <DhtTab dhtNodeCounts={dhtNodeCounts} dhtNodes={dhtNodes} socket={socket} stats={stats} tLabels={tLabels} wsState={wsState} />}
       {tab === "votes" && <VotesTab peers={peers} stats={stats} />}
       {tab === "search" && <SearchTab onSearch={doSearch} onTogglePlay={handleTogglePlay} playingId={playingId} searchElapsed={searchElapsed} searchError={searchError} searchLoading={searchLoading} searchQuery={searchQuery} searchResults={searchResults} searchType={searchType} setSearchQuery={setSearchQuery} setSearchResults={setSearchResults} setSearchType={setSearchType} />}
     </div>

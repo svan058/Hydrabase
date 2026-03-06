@@ -6,7 +6,6 @@ import type Peers from '../Peers';
 
 import { CONFIG } from '../config';
 import { error, log, warn } from '../log';
-import { portForward } from './upnp'
 import WebSocketClient from './ws/client';
 
 export class DHT_Node {
@@ -25,7 +24,6 @@ export class DHT_Node {
   private retryTimeout: NodeJS.Timeout | undefined
 
   constructor (account: Account, peers: Peers, private readonly cacheFile = Bun.file('./data/dht-nodes.json')) {
-    portForward(CONFIG.dhtPort, 'Hydrabase (UDP)', 'UDP').catch(err => { warn('WARN:', `[UPnP] Failed: ${err.message} - Ignore if manually port forwarded`) })
     this.dht = new DHT({ bootstrap: ['router.bittorrent.com:6881', 'router.utorrent.com:6881', 'dht.transmissionbt.com:6881'], krpc: krpc() })
     this.dht.listen(CONFIG.dhtPort, '0.0.0.0', () => {
       log(`[DHT] Listening on port ${CONFIG.dhtPort}`)
@@ -77,9 +75,8 @@ export class DHT_Node {
 
   public readonly isReady = () => new Promise(res => {
     const id = setInterval(() => {
+      const { notResolved, resolved } = this.countResolved()
       if (!CONFIG.requireDhtConnection) this.resolved.connected = true
-      const resolved = Object.values(this.resolved).filter(resolved => resolved).length
-      const notResolved = Object.values(this.resolved).filter(resolved => !resolved).length
       if (notResolved === 0) {
         log(`[DHT] Started... ${resolved}/${resolved}`)
         clearInterval(id)
@@ -95,14 +92,20 @@ export class DHT_Node {
 
   private readonly announce = () => {
     if (this.nodes.length <= 1) {
-      log('[DHT] Waiting for nodes...')
-      this.retryTimeout = setTimeout(() => this.announce(), 5_000)
+      warn('WARN:', '[DHT] Waiting for nodes...')
+      this.retryTimeout = setTimeout(() => this.announce(), 10_000)
       return
     }
     clearTimeout(this.retryTimeout)
     const room = DHT_Node.getRoomId()
-    this.dht.announce(room, CONFIG.serverPort, err => { if (err) {error('ERROR:', '[DHT] An error occurred during announce', {err})} })
+     this.dht.announce(room, CONFIG.serverPort, err => { if (err) {error('ERROR:', '[DHT] An error occurred during announce', {err})} })
     this.dht.lookup(room, err => { if (err) {error('ERROR:', '[DHT] An error occurred during lookup', {err})} })
+  }
+
+  private readonly countResolved = () => {
+    const resolved = Object.values(this.resolved).filter(resolved => resolved).length
+    const notResolved = Object.values(this.resolved).filter(resolved => !resolved).length
+    return { notResolved, resolved }
   }
 
   private readonly loadCache = async () => {

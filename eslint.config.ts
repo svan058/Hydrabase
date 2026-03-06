@@ -40,6 +40,7 @@ export default tseslint.config(
       "curly": "off",
       "dot-notation": "off",
       "id-length": "off",
+      "init-declarations": "off",
       "max-params": "off",
       "no-await-in-loop": "off",
       "no-console": "error",

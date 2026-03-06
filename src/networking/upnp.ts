@@ -8,7 +8,7 @@ const mapPort = (port: number, description: string, protocol: 'TCP' | 'UDP' = 'T
   upnp.portMapping({ description, private: port, protocol, public: port, ttl: CONFIG.upnpTTL }, err => {
     if (err) rej(err)
     else {
-      log(`[UPnP] Successfully port forwarded ${protocol} ${port}`)
+      log(`[UPnP] Successfully forwarded ${protocol} port ${port}`)
       res(undefined)
     }
   })

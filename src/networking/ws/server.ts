@@ -8,7 +8,6 @@ import type { Peer } from "./client";
 import { CONFIG } from '../../config'
 import { log, warn } from '../../log';
 import { HIP3_CONN_Authentication } from '../../protocol/HIP3/authentication'
-import { portForward } from '../upnp'
 
 type WebSocketData = Peer & {
   conn?: WebSocketServerConnection
@@ -68,8 +67,12 @@ const handleConnection = async (server: Bun.Server<WebSocketData>, req: Request)
   log(`[SERVER] Connecting to client`)
   const headers = Object.fromEntries(req.headers.entries())
   const peer = await HIP3_CONN_Authentication.verifyClientFromServer(headers)
-  if (Array.isArray(peer)) return { res: peer }
+  if (Array.isArray(peer)) {
+    warn('DEVWARN:', `[SERVER] Failed to authenticate peer: ${peer[1]}`)
+    return { res: peer }
+  }
   const { address, hostname, userAgent, username } = peer
+  log(`[SERVER] Authenticated ${address === '0x0' ? 'API' : 'client'} connection`)
   return server.upgrade(req, { data: { address, hostname, isOpened: false, userAgent, username } }) ? undefined : { address, hostname, res: [500, "Upgrade failed"] }
 }
 
@@ -85,12 +88,6 @@ const buildWebUI = async () => {
 }
 
 export const startServer = async (account: Account, peers: Peers) => {
-  try {
-    await portForward(CONFIG.serverPort, 'Hydrabase (TCP)', 'TCP');
-  } catch (err) {
-    warn('WARN:', `[UPnP] Failed: ${(err as Error).message} - Ignore if manually port forwarded`)
-  }
-
   await buildWebUI()
 
   const server = Bun.serve({
@@ -99,6 +96,7 @@ export const startServer = async (account: Account, peers: Peers) => {
       if (req.headers.get("upgrade") !== "websocket") {
         if (url.pathname === "/src/main.tsx") return new Response(Bun.file(`./dist/main.js`))
         if (url.pathname === "/") return new Response(Bun.file(`./dashboard/index.html`))
+        if (url.pathname === "/logo-white.svg") return new Response(Bun.file(`./public/logo-white.svg`))
         return new Response('Page not found', { status: 404 })
       }
       const response = await handleConnection(server, req)

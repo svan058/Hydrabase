@@ -8,6 +8,7 @@ export const CONFIG = {
   listenAddress: process.env['LISTEN_ADDRESS'] ?? '0.0.0.0',
   pluginConfidence: 'x / (x + y)',
   requireDhtConnection: process.env['REQUIRE_DHT_CONNECTION'] !== 'false',
+  requirePeerConnection: process.env['REQUIRE_PEER_CONNECTION'] !== 'false',
   serverPort: Number(process.env['SERVER_PORT'] ?? 4545),
   soulIdCutoff: 32,
   upnpReannounce: 1800, // Seconds
