@@ -3,17 +3,23 @@ import type Peers from '../../Peers'
 import type { Socket } from './peer'
 
 import { CONFIG } from '../../config'
+import { Signature } from '../../Crypto/Signature'
 import { log, warn } from '../../log'
 import { AuthSchema, HIP3_CONN_Authentication } from '../../protocol/HIP3/authentication'
 import { RPC } from '../rpc'
-import { Signature } from '../../Crypto/Signature'
-import SuperJSON from 'superjson'
 
 export interface Connection {
   address: `0x${string}`
   hostname: `${string}:${number}`
   userAgent: string
   username: string
+}
+
+const getCanonicalHostname = async (hostname: `${string}:${number}`) => {
+  const res = await fetch(`http://${hostname}/auth`)
+  const body = await res.text()
+  const signature = AuthSchema.safeParse(JSON.parse(body)).data?.signature
+  return signature ? Signature.fromString(signature).message.replace('I am ', '') as `${string}:${number}` : undefined
 }
 
 export default class WebSocketClient implements Socket {
@@ -35,11 +41,9 @@ export default class WebSocketClient implements Socket {
   }
 
   static readonly init = async (peers: Peers, hostname: `${string}:${number}`): Promise<false | Socket> => {
-    const res = await fetch(`http://${hostname}/auth`)
-    const sig = AuthSchema.safeParse(JSON.parse(await res.text())).data?.signature
-    const canonHostname = Signature.fromString(sig).message.replace('I am ', '')
-    if (hostname !== canonHostname) return await WebSocketClient.init(peers, canonHostname)
     if (hostname === `${CONFIG.hostname}:${CONFIG.port}`) return false
+    const canonHostname = await getCanonicalHostname(hostname)
+    if (canonHostname && hostname !== canonHostname) return await WebSocketClient.init(peers, canonHostname)
     if (hostname !== '0.0.0.0:0') RPC.fromOutbound(hostname, peers).then(rpc => { if (rpc) peers.add(rpc) })
     const result = await HIP3_CONN_Authentication.verifyServerFromClient(hostname)
     if (!result) return warn('DEVWARN:', '[CLIENT] Authentication failed')
