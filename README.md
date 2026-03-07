@@ -27,8 +27,7 @@ services:
 
       # Defaults:
       # PORT: 4545
-      # domain: your.domain.com
-      # EXTERNAL_IP: [automatically set]
+      # domain: [external ip]
       # LISTEN_ADDRESS: 0.0.0.0
       # PUID: 1000
       # PGID: 1000
