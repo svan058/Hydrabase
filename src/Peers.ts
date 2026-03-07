@@ -97,7 +97,7 @@ export default class Peers {
     socket.onClose(() => this.peers.delete(socket.peer.address))
     const peer = new Peer(this.search, socket, this.account, this, this.repos, this.db, this.metadataManager.installedPlugins)
     this.peers.set(socket.peer.address, peer)
-    cacheFile.write(JSON.stringify(Object.values(this.peers).map(peer => peer.hostname)))
+    cacheFile.write(JSON.stringify([...this.peers.values()].map(peer => peer.hostname)))
     this.announce(peer)
   }
 
