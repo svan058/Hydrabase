@@ -81,7 +81,7 @@ export class StatsReporter {
       },
       self: {
         address: this.address,
-        hostname: CONFIG.domainName ?? CONFIG.externalIp,
+        hostname: CONFIG.hostname,
         plugins: this.plugins.map(p => p.id),
         votes: {
           albums:  countRow(countVotesSql('albums')),

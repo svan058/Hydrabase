@@ -33,7 +33,7 @@ export default class WebSocketClient implements Socket {
   }
 
   static readonly init = async (peers: Peers, hostname: `${string}:${number}`): Promise<false | Socket> => {
-    if (hostname === `${CONFIG.domainName ?? CONFIG.externalIp}:${CONFIG.port}`) return false
+    if (hostname === `${CONFIG.hostname}:${CONFIG.port}`) return false
     peers.add(new RPC(hostname, peers))
     const result = await HIP3_CONN_Authentication.verifyServerFromClient(hostname)
     if (!result) return result

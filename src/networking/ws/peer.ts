@@ -240,7 +240,7 @@ export class Peer {
       return
     }
     this._ul += message.length
-    log(`[PEER] [${this.type}] Sending ${Object.keys(JSON.parse(message)).join(',')} to ${this.hostname}`)
+    log(`[PEER] [${this.type}] Sending ${Object.keys(JSON.parse(message)).join(',')} to ${this.address} ${this.hostname}`)
     this.socket.send(message)
   }
 
