@@ -62,7 +62,9 @@ const verify = {
     const data = await new Promise<[number, string] | { hostname: `${string}:${number}`; userAgent: string, username: string, }>(resolve => {
       fetch(`http://${unverifiedHostname}/auth`).then(async response => {
         const auth = AuthSchema.parse(JSON.parse(await response.text()))
-        return resolve(Signature.fromString(auth.signature).verify(`I am ${unverifiedHostname}`, auth.address) ? { hostname: unverifiedHostname as `${string}:${number}`, userAgent: auth.userAgent, username: auth.username } : [500, 'Invalid authentication from server'])
+        const signature = Signature.fromString(auth.signature)
+        if (`I am ${unverifiedHostname}` !== signature.message) console.log({ expected: `I am ${unverifiedHostname}`, signed: signature.message })
+        return resolve(signature.verify(`I am ${unverifiedHostname}`, auth.address) ? { hostname: unverifiedHostname as `${string}:${number}`, userAgent: auth.userAgent, username: auth.username } : [500, 'Invalid authentication from server'])
       }).catch(() => resolve([500, `Failed to verify hostname`]))
     })
     if (Array.isArray(data)) return data
@@ -74,6 +76,7 @@ const verify = {
       const { data: auth } = AuthSchema.safeParse(JSON.parse(await response.text()))
       if (!auth) return resolve(warn('WARN:', `[HIP3] Failed to authenticate server ${hostname}`))
       const signature = Signature.fromString(auth.signature)
+      if (`I am ${hostname}` !== signature.message) console.log({ expected: `I am ${hostname}`, signed: signature.message })
       return resolve(signature.verify(`I am ${hostname}`, auth.address) ? { address: auth.address, userAgent: auth["userAgent"], username: auth.username } : warn('DEVWARN:', `[HIP3] Invalid authentication from client ${hostname}`))
     }).catch((error: Error) => resolve(warn('WARN:', `[HIP3] Failed to connect to server ${hostname}`, `- ${error.name} ${error.message}`)))
   })
