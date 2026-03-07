@@ -1,6 +1,6 @@
 import type { Peer } from "./networking/ws/peer"
 
-import { debug } from "./log"
+import { stats } from "./log"
 
 export class PeerMap extends Map<`0x${string}`, Peer> {
   get addresses(): `0x${string}`[] {
@@ -25,7 +25,7 @@ export class PeerMap extends Map<`0x${string}`, Peer> {
 
   private log() {
     if (this.lastCount !== this.count) {
-      debug(`[PEERS] Connected to ${this.count} peer${this.count === 1 ? '' : 's'}`)
+      stats(`[PEERS] Connected to ${this.count} peer${this.count === 1 ? '' : 's'}`)
       this.lastCount = this.count
     } // TODO: encrypt private key
   }

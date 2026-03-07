@@ -216,7 +216,12 @@ export class Peer {
       const result = this.HIP2_Conn_Message.parseMessage(message)
       if (!result) return
       const { data, nonce, type } = result
-      await this.handlers[type](data, nonce)
+      if (type === 'ping') this.handlers[type](data as Ping, nonce)
+      else if (type === 'pong') this.handlers[type](data as Ping, nonce)
+      else if (type === 'announce') await this.handlers[type](data as Announce)
+      else if (type === 'request') await this.handlers[type](data as Request, nonce)
+      else if (type === 'response') this.handlers[type](data as Response, nonce)
+      else warn('DEVWARN:', `[PEER] Unexpected message ${type}`)
     })
   }
 

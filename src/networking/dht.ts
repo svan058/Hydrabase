@@ -3,7 +3,7 @@ import DHT, { type DHTNode } from 'bittorrent-dht'
 import type Peers from '../Peers';
 
 import { CONFIG } from '../config';
-import { debug, error, log, warn } from '../log';
+import { debug, error, log, stats, warn } from '../log';
 import WebSocketClient from './ws/client';
 
 export class DHT_Node {
@@ -22,7 +22,7 @@ export class DHT_Node {
   private retryTimeout: NodeJS.Timeout | undefined
 
   constructor (peers: Peers, private readonly cacheFile = Bun.file('./data/dht-nodes.json')) {
-    this.dht = new DHT({ krpc: peers.rpc })
+    this.dht = new DHT({ host: CONFIG.hostname, krpc: peers.rpc })
     this.dht.listen(CONFIG.port, '0.0.0.0', () => {
       debug(`[DHT] Listening on port ${CONFIG.port}`)
       this.resolved.listening = true
@@ -41,11 +41,11 @@ export class DHT_Node {
     this.dht.on('node', () => {
       const nodes = this.dht.toJSON().nodes.length
       if (nodes > 1 && !this.resolved.connected) {
-        debug(`[DHT] Connected to ${nodes} nodes`)
+        stats(`[DHT] Connected to ${nodes} nodes`)
         this.resolved.connected = true
       }
       if (nodes % 25 === 0 && nodes !== lastNodes) {
-        debug(`[DHT] Connected to ${nodes} nodes`)
+        stats(`[DHT] Connected to ${nodes} nodes`)
         lastNodes = nodes
       }
       this.cacheFile.write(JSON.stringify(this.dht.toJSON().nodes))

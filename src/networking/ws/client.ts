@@ -40,6 +40,7 @@ export default class WebSocketClient implements Socket {
     this._connect(peers.account)
   }
 
+  // eslint-disable-next-line max-statements
   static readonly init = async (peers: Peers, hostname: `${string}:${number}`): Promise<false | Socket> => {
     if (hostname === `${CONFIG.hostname}:${CONFIG.port}`) return false
     const canonHostname = await getCanonicalHostname(hostname)
@@ -90,14 +91,14 @@ export default class WebSocketClient implements Socket {
     })
 
     this.socket.addEventListener('close', ev => {
-      warn('WARN:', `[CLIENT] Connection closed with server  ${this.peer.username} ${this.peer.address} ws://${this.peer.hostname}`, `- ${ev.reason}`)
+      warn('WARN:', `[CLIENT] Connection closed with server ${this.peer.username} ${this.peer.address} ws://${this.peer.hostname}`, `- ${ev.reason}`)
       this._isOpened = false
       for (const handler of this.closeHandlers) handler()
       if (!this.peers.isConnectionOpened(this.peer.address)) {this._scheduleReconnect(account)}
     })
 
     this.socket.addEventListener('error', err => {
-      warn('DEVWARN:', `[CLIENT] Connection failed with server  ${this.peer.username} ${this.peer.address} ws://${this.peer.hostname} - ${(err as unknown as { message: string }).message}`)
+      warn('DEVWARN:', `[CLIENT] Connection failed with server ${this.peer.username} ${this.peer.address} ws://${this.peer.hostname} - ${(err as unknown as { message: string }).message}`)
       this._isOpened = false
       for (const handler of this.closeHandlers) handler()
     })
@@ -115,3 +116,4 @@ export default class WebSocketClient implements Socket {
     this.reconnectAttempts++
   }
 }
+// TODO: force logout of gui on api key change

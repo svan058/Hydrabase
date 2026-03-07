@@ -7,7 +7,7 @@ import { log } from '../../log'
 import WebSocketClient from '../../networking/ws/client'
 
 // TODO: reputation endorsement - vouch for peer and get rewarded/penalised based off their activity
-export const AnnounceSchema = z.object({ hostname: z.string() })
+export const AnnounceSchema = z.object({ hostname: z.string().transform(a => a as `${string}:${number}`) })
 export type Announce = z.infer<typeof AnnounceSchema>
 
 export class HIP4_Conn_Announce {
