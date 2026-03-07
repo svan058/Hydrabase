@@ -16,6 +16,7 @@ export interface Connection {
   confidence: number
   hostname: string
   latency: number
+  lookupTime: number
   plugins: string[]
   totalDL: number
   totalUL: number
@@ -104,14 +105,15 @@ export class StatsReporter {
         return {
           confidence: peer.historicConfidence,
           hostname: peer.hostname,
-          latency: peer.averageLatencyMs,
+          latency: peer.latency,
+          lookupTime: peer.lookupTime,
           plugins: peer.plugins,
-          totalDL: peer.rxTotal,
-          totalUL: peer.txTotal,
+          totalDL: peer.totalDL,
+          totalUL: peer.totalUL,
           uptime: peer.uptimeMs,
           userAgent: peer.userAgent,
           username: peer.username,
-          votes: peer.votes
+          votes: peer.votes,
         }
       })(),
     } satisfies ApiPeer))

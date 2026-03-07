@@ -104,9 +104,6 @@ export class Peer {
   get address() {
     return this.socket.peer.address
   }
-  get averageLatencyMs(): number {
-    return this.requestManager.averageLatencyMs
-  }
   get historicConfidence(): number {
     return getHistoricPeerConfidence(this.db, this.address, this.ownPlugins)
   }
@@ -116,15 +113,21 @@ export class Peer {
   get isOpened() {
     return this.socket.isOpened
   }
+  get latency(): number {
+    return this.totalLatency/this.totalPongs
+  }
+  get lookupTime(): number {
+    return this.requestManager.averageLatencyMs
+  }
   get plugins(): string[] {
     return getPlugins(this.db, this.address)
   }
 
-  get rxTotal() {
+  get totalDL() {
     return this._dl
   }
 
-  get txTotal() {
+  get totalUL() {
     return this._ul
   }
 
@@ -152,13 +155,16 @@ export class Peer {
   }
 
   private _dl = 0
-
   private _ul = 0
-
   private readonly HIP2_Conn_Message: HIP2_Conn_Message
   private readonly HIP4_Conn_Announce: HIP4_Conn_Announce
-
+  private lastPing = {
+    nonce: -1,
+    time: 0
+  }
   private readonly requestManager: RequestManager
+  private totalLatency = 0
+  private totalPongs = 0
 
   private readonly handlers = {
     announce: (announce: Announce) => this.HIP4_Conn_Announce.handleAnnounce(announce),
@@ -170,8 +176,15 @@ export class Peer {
     ping: (_: Ping, nonce: number) => {
       this.send({ nonce, pong: { time: Number(new Date()) } })
     },
-    pong: (pong: Ping, nonce: number) => {
-      log('[PONG] TODO: log latency', {nonce,pong})
+    pong: (_: Ping, nonce: number) => {
+      if (this.lastPing.nonce !== nonce) {
+        warn('DEVWARN:', '[PEER] Unhandled pong')
+        return
+      }
+      const latency = Number(new Date()) - this.lastPing.time
+      this.totalLatency += latency
+      this.totalPongs++
+      log(`[PING] Current latency ${latency}ms - Average Latency ${this.latency}ms`)
     },
     request: async <T extends Request['type']>(request: Request & { type: T }, nonce: number) => this.HIP2_Conn_Message.send.response(await this.searchNode(request.type, request.query, this.address === '0x0'), nonce),
     response: (response: Response, nonce: number) => { if (!this.requestManager.resolve(nonce, response)) warn('DEVWARN:', `[HIP2] Unexpected response nonce ${nonce} from ${this.socket.peer.address}`)}
@@ -188,7 +201,10 @@ export class Peer {
     this.socket.onOpen(() => {
       this.startTime = Number(new Date())
       id = setInterval(() => {
-        this.send({ nonce: this.nonce++, ping: { time: Number(new Date()) } })
+        const nonce = this.nonce++
+        const time = Number(new Date())
+        this.lastPing = { nonce, time }
+        this.send({ nonce, ping: { time } })
       }, 60_000)
     })
     this.socket.onClose(() => {
@@ -196,7 +212,7 @@ export class Peer {
       if (id) clearInterval(id)
     })
     this.socket.onMessage(async message => {
-      log(`[PEER] [${this.type}] Received message ${message}`)
+      log(`[PEER] [${this.type}] Received message ${message.slice(0, 40)}`)
       this._dl += message.length
       const result = this.HIP2_Conn_Message.parseMessage(message)
       if (!result) return

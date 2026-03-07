@@ -75,15 +75,15 @@ export const startNode = async (): Promise<Node> => {
   await startServer(account, peers)
   log('[STARTUP] 8/12 Starting DHT node')
   const dhtNode = new DHT_Node(account, peers)
-  log('[STARTUP] 9/12 Waiting for DHT')
+  log('[STARTUP] 9/12 Starting stats reporter')
+  new StatsReporter(account.address, `ws://${CONFIG.hostname}:${CONFIG.serverPort}`, metadataManager.installedPlugins, peers, dhtNode, db)
+  log('[STARTUP] 10/12 Waiting for DHT')
   await dhtNode.isReady()
-  log('[STARTUP] 10/12 Loading cached peers')
+  log('[STARTUP] 11/12 Loading cached peers')
   await peers.loadCache()
-  log('[STARTUP] 11/12 Waiting for peers')
+  log('[STARTUP] 12/12 Waiting for peers')
   if (CONFIG.requirePeerConnection) await peers.isConnected()
   peers.isConnected()
-  log('[STARTUP] 12/12 Starting stats reporter')
-  new StatsReporter(account.address, `ws://${CONFIG.hostname}:${CONFIG.serverPort}`, metadataManager.installedPlugins, peers, dhtNode, db)
   return node
 }
 
