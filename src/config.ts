@@ -4,9 +4,8 @@ export const CONFIG = {
   dhtBootstrapNodes: 'router.bittorrent.com:6881,router.utorrent.com:6881,dht.transmissionbt.com:6881,ddns.yazdani.au:4545,ddns.yazdani.au:4544',
   dhtReannounce: 15*60*1_000, // Ms
   dhtRoomSeed: 'hydrabase',
-  domainName: process.env['DOMAIN'],
-  externalIp: process.env['EXTERNAL_IP'] ?? (await (await fetch('https://icanhazip.com')).text()).trim(),
   finalConfidence: 'avg(x, y, z)',
+  hostname: process.env['DOMAIN'] ?? (await (await fetch('https://icanhazip.com')).text()).trim(),
   listenAddress: process.env['LISTEN_ADDRESS'] ?? '0.0.0.0',
   pluginConfidence: 'x / (x + y)',
   port: Number(process.env['PORT'] ?? 4545),

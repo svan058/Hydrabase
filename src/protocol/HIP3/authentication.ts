@@ -19,7 +19,7 @@ type Auth =
   | { apiKey: string; signature?: undefined }
   | { apiKey?: undefined; signature: Signature }
 
-const verifyAddress = async (_unverifiedSignature: string | undefined, _unverifiedApiKey: string | undefined, protocol: string | undefined, unverifiedAddress: string | undefined): [number, string] | { address: `0x${string}`; hostname: `${string}:${number}`; userAgent: string; username: string } | { address: `0x${string}` } => {
+const verifyAddress = (_unverifiedSignature: string | undefined, _unverifiedApiKey: string | undefined, protocol: string | undefined, unverifiedAddress: string | undefined): [number, string] | { address: `0x${string}`; hostname: `${string}:${number}`; userAgent: string; username: string } | { address: `0x${string}` } => {
   const unverifiedSignature = _unverifiedSignature ? Signature.fromString(_unverifiedSignature) : undefined
   const unverifiedApiKey = _unverifiedApiKey ?? protocol?.split(',').map(s => s.trim()).find(s => s.startsWith('x-api-key-'))?.replace('x-api-key-', '')
   const unverifiedAuth = unverifiedApiKey !== undefined || unverifiedSignature !== undefined ? { apiKey: unverifiedApiKey, signature: unverifiedSignature } as Auth : undefined
@@ -28,7 +28,7 @@ const verifyAddress = async (_unverifiedSignature: string | undefined, _unverifi
   if (unverifiedAuth.apiKey && unverifiedAuth.apiKey !== CONFIG.apiKey) return [401, 'Invalid API key']
   else if (unverifiedAuth.signature) {
     if (!unverifiedAddress) return [400, 'Missing address header']
-    if (!unverifiedAuth.signature.verify(`I am connecting to ${CONFIG.domainName ?? CONFIG.externalIp}`, unverifiedAddress)) return [403, 'Authentication failed']
+    if (!unverifiedAuth.signature.verify(`I am connecting to ${CONFIG.hostname}`, unverifiedAddress)) return [403, 'Authentication failed']
     return { address: unverifiedAddress as `0x${string}` }
   }
   return { address: '0x0', hostname: '0.0.0.0:0', userAgent: `Hydrabase-API/${version}`, username: 'API' }
@@ -37,12 +37,12 @@ const verifyAddress = async (_unverifiedSignature: string | undefined, _unverifi
 const prove = {
   client: (account: Account, hostname: string) => ({
     'x-address': account.address,
-    'x-hostname': CONFIG.domainName ?? CONFIG.externalIp,
+    'x-hostname': CONFIG.hostname,
     'x-signature': account.sign(`I am connecting to ${hostname})`).toString()
   }),
   server: (account: Account) => new Response(JSON.stringify({
     address: account.address,
-    signature: account.sign(`I am ${CONFIG.domainName ?? CONFIG.externalIp}:${CONFIG.port}`).toString(),
+    signature: account.sign(`I am ${CONFIG.hostname}:${CONFIG.port}`).toString(),
     userAgent: `Hydrabase/${version}`,
     username: CONFIG.username
   } satisfies z.infer<typeof AuthSchema>))

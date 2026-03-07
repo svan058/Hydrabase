@@ -25,7 +25,7 @@ const handlers = {
       warn('DEVWARN:', `[RPC] Auth missing fields from ${key}`)
       return peers.rpc.response({ ...node, host: node.address }, query, { err: 'Missing auth fields', ok: 0 })
     }
-    if (!Signature.fromString(signature).verify(`I am connecting to ${CONFIG.domainName ?? CONFIG.externalIp}`, address)) {
+    if (!Signature.fromString(signature).verify(`I am connecting to ${CONFIG.hostname}`, address)) {
       warn('DEVWARN:', `[RPC] Auth failed for ${key} (address: ${address})`)
       return peers.rpc.response({ ...node, host: node.address }, query, { err: 'Invalid signature', ok: 0 })
     }
@@ -89,7 +89,7 @@ export class RPC implements Socket {
       this.peer = { ...knownIdentity }
       setTimeout(() => this.openHandler?.(), 0)
     } else {
-      this.peer = { address: `0x0`, hostname, userAgent: 'Hydrabase/DHT', username: 'Unknown' }
+      this.peer = { address: `0x1`, hostname, userAgent: 'Hydrabase/DHT', username: 'Unknown' }
       this._sendAuth()
     }
 
@@ -129,19 +129,19 @@ export class RPC implements Socket {
     }
     const sig = account.sign(`I am connecting to ${this.node.host}:${this.node.port}`)
     // eslint-disable-next-line max-statements
-    this.peers.socket.query(this.node, { a: { address: account.address, hostname: `${CONFIG.domainName ?? CONFIG.externalIp}:${CONFIG.port}`, signature: sig.toString(), userAgent: `Hydrabase/${version}`, username: CONFIG.username }, q: `${CONFIG.rpcPrefix}_auth` }, (err, response) => {
+    this.peers.socket.query(this.node, { a: { address: account.address, hostname: `${CONFIG.hostname}:${CONFIG.port}`, signature: sig.toString(), userAgent: `Hydrabase/${version}`, username: CONFIG.username }, q: `${CONFIG.rpcPrefix}_auth` }, (err, response) => {
       if (err) {
         warn('DEVWARN:', `[RPC] Auth handshake failed with ${this.hostname}`, { err })
         return this.close()
       }
-      console.log(response.r?.['err']?.toString())
+      console.log('err', response.r?.['err']?.toString())
       const addr = response?.r?.['address']?.toString() as `0x${string}` | undefined
       const remoteSig = response?.r?.['signature']?.toString()
       if (!addr || !remoteSig) {
         warn('DEVWARN:', `[RPC] Auth response missing fields from ${this.hostname}`)
         return this.close()
       }
-      const valid = Signature.fromString(remoteSig).verify(`I am connecting to ${CONFIG.domainName ?? CONFIG.externalIp}:${CONFIG.port}`, addr)
+      const valid = Signature.fromString(remoteSig).verify(`I am connecting to ${CONFIG.hostname}:${CONFIG.port}`, addr)
       if (!valid) {
         warn('DEVWARN:', `[RPC] Auth response invalid from ${this.hostname}`)
         return this.close()
