@@ -87,7 +87,7 @@ export const buildWebUI = async () => await Bun.build({
   target: "browser",
 })
 
-export const startServer = async (account: Account, peers: Peers) => {
+export const startServer = (account: Account, peers: Peers) => {
   const server = Bun.serve({
     fetch: async (req, server) =>  {
       const url = new URL(req.url)
