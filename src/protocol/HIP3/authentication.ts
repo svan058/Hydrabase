@@ -4,7 +4,7 @@ import type { Account } from "../../Crypto/Account";
 
 import { CONFIG } from "../../config";
 import { Signature } from "../../Crypto/Signature";
-import { log, warn } from "../../log";
+import { debug, log, warn } from "../../log";
 import { version } from "../../networking/ws/server";
 
 export const AuthSchema = z.object({
@@ -52,12 +52,12 @@ const verify = {
   clientFromServer: async (headers: Record<string, string>): Promise<[number, string] | { address: `0x${string}`, hostname: `${string}:${number}`, userAgent: string; username: string, }> => {
     const { 'sec-websocket-protocol': protocol, 'x-address': unverifiedAddress, 'x-api-key': _unverifiedApiKey, 'x-hostname': unverifiedHostname, 'x-signature': _unverifiedSignature } = headers
 
-    log(`[HIP3] Verifying client address ${unverifiedAddress ?? '0x0'}`)
+    debug(`[HIP3] Verifying client address ${unverifiedAddress ?? '0x0'}`)
     const res = verifyAddress(_unverifiedSignature, _unverifiedApiKey, protocol, unverifiedAddress)
     if (Array.isArray(res)) return res
     if ('hostname' in res) return res
 
-    log(`[HIP3] Verifying client hostname ${res.address}`)
+    debug(`[HIP3] Verifying client hostname ${res.address}`)
     if (!unverifiedHostname) return [500, "Missing Hostname"]
     const data = await new Promise<[number, string] | { hostname: `${string}:${number}`; userAgent: string, username: string, }>(resolve => {
       fetch(`http://${unverifiedHostname}/auth`).then(async response => {
@@ -74,7 +74,7 @@ const verify = {
     return { address: res.address, hostname: data.hostname, userAgent: data.userAgent, username: data.username }
   },
   serverFromClient: (hostname: `${string}:${number}`) => new Promise<false | { address: `0x${string}`, userAgent: string; username: string, }>(resolve => {
-    log(`[HIP3] Verifying server address ${hostname}`)
+    debug(`[HIP3] Verifying server ${hostname}`)
     fetch(`http://${hostname}/auth`).then(async response => {
       const { data: auth } = AuthSchema.safeParse(JSON.parse(await response.text()))
       if (!auth) return resolve(warn('WARN:', `[HIP3] Failed to authenticate server ${hostname}`))
