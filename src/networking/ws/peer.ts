@@ -220,11 +220,11 @@ export class Peer {
   send<T extends Request['type']>(payload: ({ announce: Announce } | { peer_stats: PeerStats } | { ping: Ping } | { pong: Ping } | { request: Request & { type: T } } | { response: Response<T> } | { stats: NodeStats }) & { nonce: number }) {
     const message = JSON.stringify(payload)
     if (!this.socket.isOpened) {
-      warn('DEVWARN:', `[PEER] [${this.type}]Cannot send ${Object.keys(payload).join(',')} to unconnected peer ${this.socket.peer.address}`)
+      warn('DEVWARN:', `[PEER] [${this.type}] Cannot send ${Object.keys(payload).join(',')} to unconnected peer ${this.socket.peer.address}`)
       return
     }
     this._ul += message.length
-    log(`[PEER] [${this.type}]Sending ${Object.keys(JSON.parse(message)).join(',')} to ${this.hostname}`)
+    log(`[PEER] [${this.type}] Sending ${Object.keys(JSON.parse(message)).join(',')} to ${this.hostname}`)
     this.socket.send(message)
   }
 
