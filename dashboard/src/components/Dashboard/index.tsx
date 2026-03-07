@@ -97,7 +97,7 @@ export const Dashboard = ({ apiKey, socket }: { apiKey: string; socket: string }
             const resolve = pendingSearches.current.get(data.nonce)
             if (resolve) { pendingSearches.current.delete(data.nonce); resolve(data.response); return }
           }
-          if (data.stats && data.stats.address) applyStats(data.stats)
+          if (data.stats && data.stats.self.address) applyStats(data.stats)
           else if (data.peer_stats) onPeerStatsRef.current(data)
           else addLog("DEBUG", `WS msg: ${e.data.slice(0, 80)}`)
         } catch (err) {

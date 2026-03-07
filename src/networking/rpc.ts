@@ -7,6 +7,7 @@ import type { Socket } from './ws/peer'
 
 import { CONFIG } from '../config'
 import { error, log, warn } from '../log'
+import { HIP3_CONN_Authentication } from '../protocol/HIP3/authentication'
 
 const connections = new Map<string, RPC>()
 
@@ -39,7 +40,6 @@ export const startRPC = (peers: Peers) => {
   return { rpc, socket }
 }
 
-
 // Rpc.response(node, query, response, [nodes], [callback])
 
 export class RPC implements Socket {
@@ -56,7 +56,6 @@ export class RPC implements Socket {
     setTimeout(() => this.openHandler?.(), 5_000)
     connections.set(`${this.node.host}:${this.node.port}`, this)
   } // TODO: authenticate peer
-
   public readonly close = () => {
     // This.isOpened = false
     connections.delete(`${this.node.host}:${this.node.port}`)
@@ -69,7 +68,6 @@ export class RPC implements Socket {
   public onMessage(handler: (message: string) => void) {
     this.messageHandler = msg => handler(msg)
   }
-
   public onOpen(handler: () => void) {
     this.openHandler = () => handler()
   }

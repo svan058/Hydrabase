@@ -61,7 +61,7 @@ const verify = {
     const { 'sec-websocket-protocol': protocol, 'x-address': unverifiedAddress, 'x-api-key': _unverifiedApiKey, 'x-hostname': unverifiedHostname, 'x-signature': _unverifiedSignature } = headers
 
     log(`[HIP3] Verifying client address ${unverifiedAddress ?? '0x0'}`)
-    const res = verifyAddress(_unverifiedSignature, _unverifiedApiKey, protocol, unverifiedAddress)
+    const res = await verifyAddress(_unverifiedSignature, _unverifiedApiKey, protocol, unverifiedAddress)
     if (Array.isArray(res)) return res
     if ('hostname' in res) return res
 
@@ -82,8 +82,9 @@ const verify = {
       const { data: auth } = AuthSchema.safeParse(JSON.parse(await response.text()))
       if (!auth) return resolve(warn('WARN:', `[HIP3] Failed to authenticate server ${hostname}`))
       const signature = Signature.fromString(auth.signature)
-      console.log({ expected: `I am ${hostname}`, signed: signature.message })
-      return resolve(signature.verify(`I am ws://${await hostnameToIp(new URL(hostname).host)}`, auth.address) ? { address: auth.address, userAgent: auth["userAgent"], username: auth.username } : warn('DEVWARN:', `[HIP3] Invalid authentication from client ${hostname}`))
+      const ip = await hostnameToIp(new URL(hostname).host)
+      console.log({ expected: `I am ${ip}`, signed: signature.message })
+      return resolve(signature.verify(`I am ws://${ip}`, auth.address) ? { address: auth.address, userAgent: auth["userAgent"], username: auth.username } : warn('DEVWARN:', `[HIP3] Invalid authentication from client ${hostname}`))
     }).catch((error: Error) => resolve(warn('WARN:', `[HIP3] Failed to connect to server ${hostname}`, `- ${error.name} ${error.message}`)))
   })
 }
