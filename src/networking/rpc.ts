@@ -17,7 +17,7 @@ const authenticatedPeers = new Map<string, { address: `0x${string}`, userAgent: 
 const handlers = {
    
   auth: async (peers: Peers, query: krpc.KRPCQuery, unverifiedHostname: `${string}:${number}`, node: { family: "IPv4" | "IPv6"; host: string, port: number, size: number }) => {
-    const res = await HIP3_CONN_Authentication.verifyClientFromServer({ 'x-address': query.a?.['address']?.toString(), 'x-hostname': hostname, 'x-signature': query.a?.['signature']?.toString() })
+    const res = await HIP3_CONN_Authentication.verifyClientFromServer({ 'x-address': query.a?.['address']?.toString(), 'x-hostname': unverifiedHostname, 'x-signature': query.a?.['signature']?.toString() })
     if (Array.isArray(res)) {
       warn('DEVWARN:', `[RPC] Authentication failed ${unverifiedHostname} - ${res[1]}`)
       return peers.rpc.response(node, query, { e: res, ok: 0 })
