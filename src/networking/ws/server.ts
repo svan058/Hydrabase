@@ -1,3 +1,5 @@
+import type { SocketAddress } from "bun";
+
 import { readFileSync } from "fs";
 import { join } from "path";
 
@@ -7,7 +9,7 @@ import type { Connection } from "./client";
 import type { Socket } from "./peer";
 
 import { CONFIG } from '../../config'
-import { log, warn } from '../../log';
+import { debug, log, warn } from '../../log';
 import { HIP3_CONN_Authentication } from '../../protocol/HIP3/authentication'
 
 type WebSocketData = Connection & {
@@ -64,8 +66,8 @@ export class WebSocketServerConnection implements Socket {
   }
 }
 
-const handleConnection = async (server: Bun.Server<WebSocketData>, req: Request): Promise<undefined | { address?: `0x${string}`, hostname?: `${string}:${number}`, res: [number, string] }> => {
-  log(`[SERVER] Connecting to client`)
+const handleConnection = async (server: Bun.Server<WebSocketData>, req: Request, ip: null | SocketAddress): Promise<undefined | { address?: `0x${string}`, hostname?: `${string}:${number}`, res: [number, string] }> => {
+  log(`[SERVER] Connecting to client ${ip?.address}`)
   const headers = Object.fromEntries(req.headers.entries())
   const peer = await HIP3_CONN_Authentication.verifyClientFromServer(headers)
   if (Array.isArray(peer)) {
@@ -73,7 +75,7 @@ const handleConnection = async (server: Bun.Server<WebSocketData>, req: Request)
     return { res: peer }
   }
   const { address, hostname, userAgent, username } = peer
-  log(`[SERVER] Authenticated ${address === '0x0' ? 'API' : 'client'} connection`)
+  log(`[SERVER] Authenticated connection to ${username} ${address} ${hostname} from ${ip?.address}`)
   return server.upgrade(req, { data: { address, hostname, isOpened: false, userAgent, username } }) ? undefined : { address, hostname, res: [500, "Upgrade failed"] }
 }
 
@@ -95,7 +97,7 @@ export const startServer = async (account: Account, peers: Peers) => {
              : url.pathname === "/logo-white.svg" ? new Response(Bun.file(`./public/logo-white.svg`))
              : new Response('Page not found', { status: 404 })
       }
-      const response = await handleConnection(server, req)
+      const response = await handleConnection(server, req, server.requestIP(req))
       if (response === undefined) return response
       const {address, hostname, res} = response
       warn('DEVWARN:', `[SERVER] Rejected connection with client ${address || hostname ? [address,hostname].join(' ') : 'N/A'} for reason: ${res[1]}`)
@@ -122,5 +124,5 @@ export const startServer = async (account: Account, peers: Peers) => {
       }
     }
   })
-  log(`[SERVER] Listening on port ${server.port}`)
+  debug(`[SERVER] Listening on port ${server.port}`)
 }

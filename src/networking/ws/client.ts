@@ -44,11 +44,12 @@ export default class WebSocketClient implements Socket {
     if (hostname === `${CONFIG.hostname}:${CONFIG.port}`) return false
     const canonHostname = await getCanonicalHostname(hostname)
     if (canonHostname && hostname !== canonHostname) return await WebSocketClient.init(peers, canonHostname)
+    log(`[CLIENT] Attempting to connect to ws://${hostname}`)
     if (hostname !== '0.0.0.0:0') RPC.fromOutbound(hostname, peers).then(rpc => { if (rpc) peers.add(rpc) })
     const result = await HIP3_CONN_Authentication.verifyServerFromClient(hostname)
-    if (!result) return warn('DEVWARN:', '[CLIENT] Authentication failed')
+    if (!result) return warn('DEVWARN:', `[CLIENT] Authentication failed ${hostname}`)
     const { address, userAgent, username } = result
-    if (peers.has(address)) return warn('DEVWARN:', `[CLIENT] Already connected/connecting to peer ${username} ${address}`)
+    if (peers.has(address)) return warn('DEVWARN:', `[CLIENT] Already connected/connecting to peer ${username} ${address} ws://${hostname}`)
     if (address === peers.account.address) return warn('DEVWARN:', `[CLIENT] Not connecting to self`)
     return new WebSocketClient({ address, hostname, userAgent, username }, peers)
   }
@@ -78,25 +79,25 @@ export default class WebSocketClient implements Socket {
 
   private _connect(account: Account) {
     const headers = HIP3_CONN_Authentication.proveClientAddress(account, this.peer.hostname)
-    log(`[CLIENT] Connecting to server ${this.peer.username} ${this.peer.hostname} ${this.peer.address}`)
+    log(`[CLIENT] Connecting to ${this.peer.username} ${this.peer.address} ws://${this.peer.hostname}`)
     this.socket = new WebSocket(`ws://${this.peer.hostname}`, { headers })
 
     this.socket.addEventListener('open', () => {
-      log(`[CLIENT] Connected to server ${this.peer.username} ${this.peer.hostname} ${this.peer.address}`)
+      log(`[CLIENT] Connected to ${this.peer.username} ${this.peer.address} ws://${this.peer.hostname}`)
       this._isOpened = true
       this._flushQueue()
       this.openHandler?.()
     })
 
     this.socket.addEventListener('close', ev => {
-      warn('WARN:', `[CLIENT] Connection closed with server ${this.peer.username} ${this.peer.hostname} ${this.peer.address}`, `- ${ev.reason}`)
+      warn('WARN:', `[CLIENT] Connection closed with server  ${this.peer.username} ${this.peer.address} ws://${this.peer.hostname}`, `- ${ev.reason}`)
       this._isOpened = false
       for (const handler of this.closeHandlers) handler()
       if (!this.peers.isConnectionOpened(this.peer.address)) {this._scheduleReconnect(account)}
     })
 
     this.socket.addEventListener('error', err => {
-      warn('DEVWARN:', `[CLIENT] Connection failed with server ${this.peer.username} ${this.peer.hostname} ${this.peer.address} - ${(err as unknown as { message: string }).message}`)
+      warn('DEVWARN:', `[CLIENT] Connection failed with server  ${this.peer.username} ${this.peer.address} ws://${this.peer.hostname} - ${(err as unknown as { message: string }).message}`)
       this._isOpened = false
       for (const handler of this.closeHandlers) handler()
     })
