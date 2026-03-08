@@ -4,7 +4,7 @@ import type Peers from '../../Peers'
 
 import { CONFIG } from '../../config'
 import { log, warn } from '../../log'
-import { proveClient, verifyServer } from '../../protocol/HIP3/handshake'
+import { AuthSchema, proveClient, verifyServer } from '../../protocol/HIP3/handshake'
 
 export interface Connection {
   address: `0x${string}`
@@ -34,9 +34,12 @@ export default class WebSocketClient implements Socket {
   static readonly init = async (hostname: `${string}:${number}`, peers: Peers): Promise<false | Socket> => {
     if (hostname === `${CONFIG.hostname}:${CONFIG.port}`) return false
     log(`[CLIENT] Attempting to connect to ws://${hostname}`)
-    const result = await verifyServer(hostname)
-    if (Array.isArray(result)) return warn('DEVWARN:', `[CLIENT] Authentication failed ${hostname} - ${result[1]}`)
-    const { address, userAgent, username } = result
+    const response = await fetch(`http://${hostname}/auth`)
+    const {data:auth} = AuthSchema.safeParse(JSON.parse(await response.text()))
+    if (!auth) return warn('DEVWARN:', `[CLIENT] Invalid authentication provided by ${hostname}`)
+    const res = verifyServer(hostname, auth)
+    if (Array.isArray(res)) return warn('DEVWARN:', `[CLIENT] Authentication failed ${hostname} - ${res[1]}`)
+    const { address, userAgent, username } = auth
     if (peers.has(address)) return warn('DEVWARN:', `[CLIENT] Already connected/connecting to peer ${username} ${address} ws://${hostname}`)
     if (address === peers.account.address) return warn('DEVWARN:', `[CLIENT] Not connecting to self`)
     return new WebSocketClient({ address, hostname, userAgent, username }, peers)

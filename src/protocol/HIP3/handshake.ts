@@ -15,7 +15,7 @@ export const AuthSchema = z.object({
   username: z.string()
 })
 
-type Auth = z.infer<typeof AuthSchema>
+export type Auth = z.infer<typeof AuthSchema>
 
 export const proveServer = (account: Account): Auth => ({
   address: account.address,
@@ -25,18 +25,11 @@ export const proveServer = (account: Account): Auth => ({
   username: CONFIG.username
 })
 
-export const verifyServer = (hostname: string) => new Promise<[number, string] | Auth>(resolve => {
-  fetch(`http://${hostname}/auth`).then(async response => { // TODO: UDP mode
-    const auth = AuthSchema.parse(JSON.parse(await response.text()))
-    const signature = Signature.fromString(auth.signature)
-    if (hostname !== auth.hostname) resolve([500, 'Unexpected hostname'])
-    if (signature.verify(`I am ${hostname}`, auth.address)) resolve(auth)
-    return resolve([500, `Invalid signature`])
-  }).catch(err => {
-    warn('DEVWARN:', "[HIP3] Failed to authenticate server", {err})
-    resolve([500, `Failed to authenticate server`])
-  })
-})
+export const verifyServer = (hostname: `${string}:${number}`, auth: Auth): [number, string] | true => {
+  if (hostname !== auth.hostname) return [500, 'Unexpected hostname']
+  if (!Signature.fromString(auth.signature).verify(`I am ${hostname}`, auth.address)) return [500, `Invalid signature`]
+  return true
+}
 
 export const proveClient = (account: Account, hostname: string): Auth => ({
   address: account.address,
