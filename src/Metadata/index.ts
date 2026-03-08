@@ -119,7 +119,7 @@ export default class MetadataManager implements MetadataPlugin {
   private static merge<T extends { address: `0x${string}`; soul_id: string, }>(primary: T[], secondary: T[]): T[] {
     const seen = new Set(primary.map(r => `${r.soul_id}:${r.address}`))
     return [...primary, ...secondary.filter(r => !seen.has(`${r.soul_id}:${r.address}`))]
-  } // TODO: plugin error handling so searches continue even if 1 plugin fails
+  }
 
   async albumTracks(albumSoulId: string, peers: Peers): Promise<Response<'album.tracks'>> {
     const albums = this.db.album.lookupBySoulId(albumSoulId)

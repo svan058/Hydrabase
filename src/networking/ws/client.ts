@@ -1,29 +1,16 @@
 import type { Account } from '../../Crypto/Account'
+import type { Socket } from '../../peer'
 import type Peers from '../../Peers'
-import type { Socket } from './peer'
 
 import { CONFIG } from '../../config'
-import { Signature } from '../../Crypto/Signature'
 import { log, warn } from '../../log'
-import { AuthSchema, HIP3_CONN_Authentication } from '../../protocol/HIP3/authentication'
-import { RPC } from '../rpc'
+import { HIP3_CONN_Authentication } from '../../protocol/HIP3/authentication'
 
 export interface Connection {
   address: `0x${string}`
   hostname: `${string}:${number}`
   userAgent: string
   username: string
-}
-
-export const getCanonicalHostname = async (hostname: `${string}:${number}`) => {
-  try {
-    const res = await fetch(`http://${hostname}/auth`)
-    const body = await res.text()
-    const signature = AuthSchema.safeParse(JSON.parse(body)).data?.signature
-    return signature ? Signature.fromString(signature).message.replace('I am ', '') as `${string}:${number}` : hostname
-  } catch (_) {
-    return hostname
-  }
 }
 
 export default class WebSocketClient implements Socket {
@@ -44,14 +31,9 @@ export default class WebSocketClient implements Socket {
     this._connect(peers.account)
   }
 
-  // eslint-disable-next-line max-statements
-  static readonly init = async (peers: Peers, hostname: `${string}:${number}`): Promise<false | Socket> => {
+  static readonly init = async (hostname: `${string}:${number}`, peers: Peers): Promise<false | Socket> => {
     if (hostname === `${CONFIG.hostname}:${CONFIG.port}`) return false
-    const canonHostname = await getCanonicalHostname(hostname)
-    if (canonHostname && hostname !== canonHostname) return await WebSocketClient.init(peers, canonHostname)
     log(`[CLIENT] Attempting to connect to ws://${hostname}`)
-    // if (hostname !== '0.0.0.0:0') RPC.fromOutbound(hostname, peers).then(rpc => { if (rpc) peers.add(rpc) })
-    // return RPC.fromOutbound(hostname, peers)
     const result = await HIP3_CONN_Authentication.verifyServerFromClient(hostname)
     if (!result) return warn('DEVWARN:', `[CLIENT] Authentication failed ${hostname}`)
     const { address, userAgent, username } = result

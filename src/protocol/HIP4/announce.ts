@@ -1,10 +1,9 @@
 import z from 'zod'
 
-import type { Peer } from '../../networking/ws/peer'
+import type { Peer } from '../../peer'
 import type Peers from '../../Peers'
 
 import { log } from '../../log'
-import WebSocketClient from '../../networking/ws/client'
 
 // TODO: reputation endorsement - vouch for peer and get rewarded/penalised based off their activity
 export const AnnounceSchema = z.object({ hostname: z.string().transform(a => a as `${string}:${number}`) })
@@ -13,10 +12,9 @@ export type Announce = z.infer<typeof AnnounceSchema>
 export class HIP4_Conn_Announce {
   constructor(private readonly peer: Peer, private readonly peers: Peers) {}
 
-  async handleAnnounce(announce: Announce): Promise<void> {
+  handleAnnounce(announce: Announce): void {
     log(`[HIP4] Discovered server through ${this.peer.address}: ${announce.hostname}`)
-    const peer = await WebSocketClient.init(this.peers, announce.hostname)
-    if (peer) this.peers.add(peer)
+    this.peers.add(announce.hostname)
   }
 
   sendAnnounce(announce: Announce, address: `0x${string}`): void {

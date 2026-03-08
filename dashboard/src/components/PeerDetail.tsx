@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import type { PeerStats } from "../../../src/networking/ws/peer";
+import type { PeerStats } from "../../../src/peer";
 import type { PeerWithCountry } from "../types";
 
 import { toEmoji } from "../geo";

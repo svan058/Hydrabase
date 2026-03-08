@@ -34,6 +34,7 @@ services:
 
       # Advanced:
       # REQUIRE_DHT_CONNECTION: true
+      # PREFER_TRANSPORT: TCP # TCP or UDP
 
       # Uncomment to enable Spotify plugin:
       # SPOTIFY_CLIENT_ID: $SPOTIFY_CLIENT_ID
@@ -58,11 +59,13 @@ bun src
 ## Networking
 Hydrabase uses both TCP & UDP (default: 4545):
 ```
-TCP: 4545 (WebSocket - Used to communicate with peers)
-UDP: 4545 (DHT - Used to discover peers)
+TCP: 4545 (WebSocket)
+UDP: 4545 (DHT)
 ```
 
-Hydrabase will automatically try to port forward using uPnP.For best connectability, I recommend manually port forwarding both. However technically, only TCP is required for Hydrabase to work, though performance may be worse without UDP port forwarded.
+Hydrabase will automatically try to port forward using uPnP. For best connectability, I recommend manually port forwarding both. However technically, only TCP is required for Hydrabase to work, though performance may be worse without UDP port forwarded.
+
+When setting `PREFER_TRANSPORT`, you only change the transport for connections you initiate, not on ones initiated by other peers. If UDP is selected, TCP is still used to handle authentication. A proper UDP-only mode for those with restricted networks is planned.
 
 ## API Documentation
 

@@ -1,7 +1,7 @@
 import z from 'zod';
 
-import { debug, log, warn } from '../../log';
-import { type Peer } from '../../networking/ws/peer';
+import { debug, warn } from '../../log';
+import { type Peer } from '../../peer';
 import { type Request, RequestManager, RequestSchema, type Response, ResponseSchema } from '../../RequestManager';
 import { AnnounceSchema } from '../HIP4/announce';
 

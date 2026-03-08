@@ -6,7 +6,6 @@ import type Peers from '../Peers';
 
 import { CONFIG } from '../config';
 import { debug, error, log, stats, warn } from '../log';
-import WebSocketClient from './ws/client';
 
 export class DHT_Node {
   static readonly nodeId = SHA1.hash(`${CONFIG.hostname}:${CONFIG.port}`, 'hex')
@@ -20,7 +19,6 @@ export class DHT_Node {
     return this.dht.toJSON().nodes
   }
   private readonly dht: DHT
-  private readonly knownPeers = new Set<`${string}:${number}`>()
   private lastResolved = 0
   private retryTimeout: NodeJS.Timeout | undefined
 
@@ -53,24 +51,14 @@ export class DHT_Node {
       }
       this.cacheFile.write(JSON.stringify(this.dht.toJSON().nodes))
     })
-    this.dht.on('peer', async peer => {
-      if (`${peer.host}:${peer.port}` === `${CONFIG.hostname}:${CONFIG.port}`) return // TODO: upgrade from external ip to domain if any
-      if (this.knownPeers.has(`${peer.host}:${peer.port}`)) return
-      this.knownPeers.add(`${peer.host}:${peer.port}`)
+    this.dht.on('peer', peer => {
       debug(`[DHT] Discovered peer ${peer.host}:${peer.port}`)
-      const client = await WebSocketClient.init(peers, `${peer.host}:${peer.port}`)
-      if (client === false) return
-      peers.add(client)
+      peers.add(`${peer.host}:${peer.port}`)
     })
-    this.dht.on('announce', async (peer, _infoHash) => {
+    this.dht.on('announce', (peer, _infoHash) => {
       if (_infoHash.toString('hex') !== DHT_Node.getRoomId()) return
-      if (this.knownPeers.has(`${peer.host}:${peer.port}`)) return
-      if (`${peer.host}:${peer.port}` === `${CONFIG.hostname}:${CONFIG.port}`) return // TODO: upgrade from external ip to domain if any
       log(`[DHT] Received announce from ${peer.host}:${peer.port}`)
-      const client = await WebSocketClient.init(peers, `${peer.host}:${peer.port}`)
-      if (client === false) return
-      peers.add(client)
-      this.knownPeers.add(`${peer.host}:${peer.port}`)
+      peers.add(`${peer.host}:${peer.port}`)
     })
   }
 

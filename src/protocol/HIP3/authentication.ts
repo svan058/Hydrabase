@@ -64,7 +64,7 @@ const verify = {
         const auth = AuthSchema.parse(JSON.parse(await response.text()))
         return resolve(Signature.fromString(auth.signature).verify(`I am ${unverifiedHostname}`, res.address) ? { hostname: unverifiedHostname as `${string}:${number}`, userAgent: auth.userAgent, username: auth.username } : [500, 'Invalid authentication from server'])
       }).catch(err => {
-        console.error(err)
+        warn('DEVWARN:', "[HIP3] Failed to authenticate client's hostname", {err})
         resolve([500, `Failed to verify hostname`])
       })
     })

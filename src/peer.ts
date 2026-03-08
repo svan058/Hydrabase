@@ -1,19 +1,18 @@
 import { sql } from 'drizzle-orm'
 import { Parser } from 'expr-eval'
 
-import type { Account } from '../../Crypto/Account';
-import type { DB, Repositories } from "../../db";
-import type { MetadataPlugin } from "../../Metadata";
-import type Peers from "../../Peers";
-import type { NodeStats, Votes } from "../../StatsReporter";
+import type { DB, Repositories } from "./db";
+import type { MetadataPlugin } from "./Metadata";
+import type Peers from "./Peers";
+import type { NodeStats, Votes } from "./StatsReporter";
 
-import { CONFIG } from "../../config";
-import { debug, log, stats, warn } from "../../log";
-import { HIP2_Conn_Message, type Ping } from "../../protocol/HIP2/message";
-import { type Announce, HIP4_Conn_Announce } from "../../protocol/HIP4/announce";
-import { type Album, type Artist, type Request, RequestManager, type Response, type Track } from "../../RequestManager";
-import { RPC } from '../rpc';
-import WebSocketClient, { type Connection } from './client';
+import { CONFIG } from "./config";
+import { debug, stats, warn } from "./log";
+import { RPC } from './networking/rpc';
+import WebSocketClient, { type Connection } from './networking/ws/client';
+import { HIP2_Conn_Message, type Ping } from "./protocol/HIP2/message";
+import { type Announce, HIP4_Conn_Announce } from "./protocol/HIP4/announce";
+import { type Album, type Artist, type Request, RequestManager, type Response, type Track } from "./RequestManager";
 
 export interface PeerStats {
   address: `0x${string}`
@@ -192,7 +191,14 @@ export class Peer {
 
   private startTime?: number
 
-  constructor(private readonly searchNode: <T extends Request['type']>(type: T, query: string, searchPeers: boolean) => Promise<Response<T>>, private readonly socket: Socket, account: Account, peers: Peers, private readonly repos: Repositories, private readonly db: DB, private readonly ownPlugins: MetadataPlugin[]) {
+  constructor(
+    private readonly socket: Socket,
+    peers: Peers,
+    private readonly db: DB,
+    private readonly repos: Repositories,
+    private readonly ownPlugins: MetadataPlugin[],
+    private readonly searchNode: <T extends Request['type']>(type: T, query: string, searchPeers: boolean) => Promise<Response<T>>
+  ) {
     this.requestManager = new RequestManager()
     this.HIP2_Conn_Message = new HIP2_Conn_Message(this, this.requestManager)
     this.HIP4_Conn_Announce = new HIP4_Conn_Announce(this, peers)

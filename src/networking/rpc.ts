@@ -1,15 +1,15 @@
 import krpc from 'k-rpc'
 import krpcSocket from 'k-rpc-socket'
 
+import type { Socket } from '../peer'
 import type Peers from '../Peers'
-import type { Socket } from './ws/peer'
 
 import { CONFIG } from '../config'
 import { Signature } from '../Crypto/Signature'
 import { error, log, warn } from '../log'
 import { HIP3_CONN_Authentication } from '../protocol/HIP3/authentication'
 import { DHT_Node } from './dht'
-import { type Connection, getCanonicalHostname } from './ws/client'
+import { type Connection } from './ws/client'
 import { version } from "./ws/server";
 
 const authenticatedPeers = new Map<string, { address: `0x${string}`, userAgent: string, username: string }>()
@@ -39,12 +39,12 @@ export class RPC implements Socket {
     if (!response) return warn('DEVWARN:', `[RPC] Auth handshake failed with ${hostname}`)
     const addr = response.r?.['address']?.toString() as `0x${string}` | undefined
     const remoteSig = response?.r?.['signature']?.toString()
-    const err = response.r?.['e'][1].toString()
+    const err = response.r?.['e']?.[1].toString()
     if (err) return warn('DEVWARN:', `[RPC] Failed to authenticate from outbound - ${err}`)
     if (!addr || !remoteSig) return warn('DEVWARN:', `[RPC] Auth response missing fields from ${hostname}`)
     const signature = Signature.fromString(remoteSig)
     if (!signature.verify(`I am connecting to ${CONFIG.hostname}:${CONFIG.port}`, addr)) return warn('DEVWARN:', `[RPC] Auth response invalid from ${hostname}`) // TODO: move to HIP3
-    log(`[RPC] Mutual auth complete with ${addr} at ${hostname}`) // TODO: Upgrade from IP to domain
+    log(`[RPC] Mutual auth complete with ${addr} at ${hostname}`)
     authenticatedPeers.set(`${host}:${port}`, { address: addr, userAgent: response?.r?.['userAgent']?.toString() ?? 'Hydrabase/DHT', username: response?.r?.['username']?.toString() ?? 'Unknown' })
     return new RPC(hostname, peers, { address: addr, userAgent: response?.r?.['userAgent']?.toString() ?? 'Hydrabase/DHT', username: response?.r?.['username']?.toString() ?? 'Unknown' })
   }
@@ -78,9 +78,7 @@ export class RPC implements Socket {
 }
 
 const handlers = {
-  // eslint-disable-next-line max-statements
-  auth: async (peers: Peers, query: krpc.KRPCQuery, _unverifiedHostname: `${string}:${number}`, node: { family: "IPv4" | "IPv6"; host: string, port: number, size: number }) => {
-    const unverifiedHostname = await getCanonicalHostname(_unverifiedHostname)
+  auth: async (peers: Peers, query: krpc.KRPCQuery, unverifiedHostname: `${string}:${number}`, node: { family: "IPv4" | "IPv6"; host: string, port: number, size: number }) => {
     const res = await HIP3_CONN_Authentication.verifyClientFromServer({ 'x-address': query.a?.['address']?.toString() ?? '0x0', 'x-hostname': unverifiedHostname, 'x-signature': query.a?.['signature']?.toString() ?? '' })
     if (Array.isArray(res)) {
       warn('DEVWARN:', `[RPC] Authentication failed ${unverifiedHostname} - ${res[1]}`)
