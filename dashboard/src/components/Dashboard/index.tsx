@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 
-import type { PeerStats } from "../../../../src/networking/ws/peer"
+import type { PeerStats } from "../../../../src/peer"
 import type { NodeStats } from "../../../../src/StatsReporter"
 import type { EventEntry, FilterState, PeerWithCountry, WsState } from "../../types"
 

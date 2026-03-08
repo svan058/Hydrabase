@@ -1,4 +1,4 @@
-import type { Peer } from "./networking/ws/peer"
+import type { Peer } from "./peer"
 
 import { stats } from "./log"
 

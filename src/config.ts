@@ -11,11 +11,12 @@ export const CONFIG = {
   listenAddress: process.env['LISTEN_ADDRESS'] ?? '0.0.0.0',
   pluginConfidence: 'x / (x + y)',
   port: Number(process.env['PORT'] ?? 4545),
+  PREFER_TRANSPORT: process.env['PREFER_TRANSPORT'] === 'UDP' ? 'UDP' : 'TCP',
   requireDhtConnection: process.env['REQUIRE_DHT_CONNECTION'] !== 'false',
   requirePeerConnection: process.env['REQUIRE_PEER_CONNECTION'] !== 'false',
   rpcPrefix: 'hydra',
   soulIdCutoff: 32,
   upnpReannounce: 1800, // Seconds
   upnpTTL: 3600, // Seconds
-  username: process.env['USERNAME'] ?? 'Anonymous'
+  username: process.env['USERNAME'] ?? 'Anonymous',
 }

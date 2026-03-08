@@ -4,9 +4,9 @@ import { readFileSync } from "fs";
 import { join } from "path";
 
 import type { Account } from "../../Crypto/Account";
+import type { Socket } from "../../peer";
 import type Peers from '../../Peers';
 import type { Connection } from "./client";
-import type { Socket } from "./peer";
 
 import { CONFIG } from '../../config'
 import { debug, log, warn } from '../../log';

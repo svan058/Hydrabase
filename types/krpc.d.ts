@@ -96,7 +96,7 @@ declare module 'k-rpc' {
     e?: [number, string];
     ok: 0 | 1
     r?: Record<string, unknown> & {
-      e: [number, Buffer]
+      e?: [number, Buffer]
     };
     signature?: string;
     t?: Buffer;

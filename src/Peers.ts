@@ -9,14 +9,16 @@ import type MetadataManager from './Metadata'
 import type { Request, Response, SearchResult } from './RequestManager'
 
 import { CONFIG } from './config'
+import { Signature } from './Crypto/Signature';
 import { log, warn } from './log';
-import { startRPC } from './networking/rpc';
+import { RPC, startRPC } from './networking/rpc';
 import WebSocketClient from "./networking/ws/client";
-import { Peer, type Socket } from "./networking/ws/peer";
+import { WebSocketServerConnection } from './networking/ws/server';
+import { Peer, type Socket } from "./peer";
 import { PeerMap } from './PeerMap';
+import { AuthSchema } from './protocol/HIP3/authentication';
 
 const cacheFile = Bun.file('./data/ws-servers.json')
-// TODO: TCP hole punching
 const avg = (numbers: number[]) => numbers.reduce((accumulator, currentValue) => accumulator + currentValue, 0) / numbers.length
 const parser = new Parser()
 parser.functions.avg = (...args: number[]) => avg(args)
@@ -31,7 +33,19 @@ const checkPluginMatches = (peerResults: Response<Request['type']>, confirmedHas
     pluginMatches[result.plugin_id][confirmedHashes.has(hash) ? 'match' : 'mismatch']++
   } // TODO: Store peer username
   return pluginMatches
-} // TODO: show all ws requests/responses/announces/etc in event log
+} // TODO: pipe all console.log's to gui
+
+const getCanonicalHostname = async (hostname: `${string}:${number}`) => {
+  try {
+    const res = await fetch(`http://${hostname}/auth`)
+    const body = await res.text()
+    const signature = AuthSchema.safeParse(JSON.parse(body)).data?.signature
+    return signature ? Signature.fromString(signature).message.replace('I am ', '') as `${string}:${number}` : hostname
+  } catch (err) {
+    warn('WARN:', `[CLIENT] Failed to get canonical hostname from ${hostname} - ${(err as Error).message}`)
+    return hostname
+  }
+}
 
 const calculatePeerConfidence = (pluginMatches: Record<string, { match: number, mismatch: number }>, installedPlugins: Set<string>) => avg(
   Object.entries(pluginMatches)
@@ -62,9 +76,7 @@ const isOpened = (peer: Peer | undefined, address: `0x${string}`): boolean => pe
 
 export default class Peers {
   public readonly rpc: KRPC
-
   public readonly socket: RpcSocket
-
   get apiPeer() {
     return this.peers.get('0x0')
   }
@@ -77,6 +89,7 @@ export default class Peers {
   get peerAddresses() {
     return this.peers.addresses
   }
+  private readonly knownPeers = new Set<`${string}:${number}`>()
   private readonly peers = new PeerMap()
 
   constructor(public readonly account: Account, private readonly metadataManager: MetadataManager, private readonly repos: Repositories, private readonly db: DB, private readonly search: <T extends Request['type']>(type: T, query: string, searchPeers?: boolean) => Promise<Response<T>>) {
@@ -86,7 +99,12 @@ export default class Peers {
   }
 
   // TODO: some mechanism to proactively propagate unsolicited votes
-  public add(socket: Socket) {
+  // eslint-disable-next-line max-statements
+  public async add(_peer: `${string}:${number}` | RPC | WebSocketServerConnection) {
+    if (typeof _peer === 'string' && this.knownPeers.has(_peer)) return
+    if (typeof _peer !== 'string' && this.knownPeers.has(_peer.peer.hostname)) return
+    const socket = await this.toSocket(_peer)
+    if (!socket) return
     if (this.peers.has(socket.peer.address)) {
       if (socket.peer.address !== '0x0') {
         warn('DEVWARN:', `[PEERS] Tried to connect to existing peer again via ${socket instanceof WebSocketClient ? 'client' : 'server'} ${socket.peer.address} ${socket.peer.hostname}`)
@@ -94,8 +112,9 @@ export default class Peers {
       }
       return
     } // TODO: feedback endpoints, so soulsync can force set metadata votes to 0 or 1 confidence
+    this.knownPeers.add(socket.peer.hostname)
     socket.onClose(() => this.peers.delete(socket.peer.address))
-    const peer = new Peer(this.search, socket, this.account, this, this.repos, this.db, this.metadataManager.installedPlugins)
+    const peer = new Peer(socket, this, this.db, this.repos, this.metadataManager.installedPlugins, this.search)
     this.peers.set(socket.peer.address, peer)
     cacheFile.write(JSON.stringify([...this.peers.values()].map(peer => peer.hostname)))
     this.announce(peer)
@@ -109,6 +128,7 @@ export default class Peers {
 
   // TODO: endpoint soulsync can call with user feedback of "spotify result x is listenbrainz result y"
   public readonly has = (address: `0x${string}`) => address in this.peers
+
   public readonly isConnected = async () => {
     let i = 0
     await new Promise(res => {
@@ -121,7 +141,6 @@ export default class Peers {
       }, 1_000)
     })
   }
-
   public isConnectionOpened(address: `0x${string}`): boolean {
     const peer = this.peers.get(address)
     if (!peer) return false
@@ -131,12 +150,11 @@ export default class Peers {
   public async loadCache() {
     const bootstrapPeers = CONFIG.bootstrapPeers.split(',')
     await Promise.all(bootstrapPeers.map(async node => {
-      const socket = await WebSocketClient.init(this, node as `${string}:${number}`)
-      if (socket) this.add(socket)
+      await this.add(node as `${string}:${number}`)
     }))
     if (!(await cacheFile.exists())) return
     const hostnames: `${string}:${number}`[] = await cacheFile.json()
-    for (const hostname of hostnames) if (hostname && !bootstrapPeers.includes(hostname)) WebSocketClient.init(this, hostname).then(socket => { if (socket) this.add(socket) })
+    for (const hostname of hostnames) if (hostname && !bootstrapPeers.includes(hostname)) this.add(hostname)
   } // TODO: time based confidence scores - older peers = more trustworthy
 
   public async requestAll<T extends Request['type']>(request: Request & { type: T }, confirmedHashes: Set<bigint>, installedPlugins: Set<string>): Promise<Map<bigint, SearchResult[T]>> {
@@ -161,5 +179,13 @@ export default class Peers {
       }
       announceTo.announcePeer({ hostname })
     }
+  }
+
+  private async toSocket(peer: `${string}:${number}` | RPC | WebSocketServerConnection): Promise<false | Socket> {
+    if (peer instanceof WebSocketServerConnection || peer instanceof RPC) return peer
+    const hostname = await getCanonicalHostname(peer)
+    const wsClient = await WebSocketClient.init(hostname, this)
+    if (wsClient) return wsClient
+    return RPC.fromOutbound(hostname, this)
   }
 }
