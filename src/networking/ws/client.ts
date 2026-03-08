@@ -4,7 +4,7 @@ import type Peers from '../../Peers'
 
 import { CONFIG } from '../../config'
 import { log, warn } from '../../log'
-import { HIP3_CONN_Authentication } from '../../protocol/HIP3/authentication'
+import { proveClient, verifyServer } from '../../protocol/HIP3/handshake'
 
 export interface Connection {
   address: `0x${string}`
@@ -34,8 +34,8 @@ export default class WebSocketClient implements Socket {
   static readonly init = async (hostname: `${string}:${number}`, peers: Peers): Promise<false | Socket> => {
     if (hostname === `${CONFIG.hostname}:${CONFIG.port}`) return false
     log(`[CLIENT] Attempting to connect to ws://${hostname}`)
-    const result = await HIP3_CONN_Authentication.verifyServerFromClient(hostname)
-    if (!result) return warn('DEVWARN:', `[CLIENT] Authentication failed ${hostname}`)
+    const result = await verifyServer(hostname)
+    if (Array.isArray(result)) return warn('DEVWARN:', `[CLIENT] Authentication failed ${hostname} - ${result[1]}`)
     const { address, userAgent, username } = result
     if (peers.has(address)) return warn('DEVWARN:', `[CLIENT] Already connected/connecting to peer ${username} ${address} ws://${hostname}`)
     if (address === peers.account.address) return warn('DEVWARN:', `[CLIENT] Not connecting to self`)
@@ -66,9 +66,8 @@ export default class WebSocketClient implements Socket {
   }
 
   private _connect(account: Account) {
-    const headers = HIP3_CONN_Authentication.proveClientAddress(account, this.peer.hostname)
     log(`[CLIENT] Connecting to ${this.peer.username} ${this.peer.address} ws://${this.peer.hostname}`)
-    this.socket = new WebSocket(`ws://${this.peer.hostname}`, { headers })
+    this.socket = new WebSocket(`ws://${this.peer.hostname}`, { headers: proveClient(account, this.peer.hostname) })
 
     this.socket.addEventListener('open', () => {
       log(`[CLIENT] Connected to ${this.peer.username} ${this.peer.address} ws://${this.peer.hostname}`)

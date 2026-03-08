@@ -7,7 +7,7 @@ import type Peers from '../Peers'
 import { CONFIG } from '../config'
 import { Signature } from '../Crypto/Signature'
 import { error, log, warn } from '../log'
-import { HIP3_CONN_Authentication } from '../protocol/HIP3/authentication'
+import { verifyClient } from '../protocol/HIP3/handshake'
 import { DHT_Node } from './dht'
 import { type Connection } from './ws/client'
 import { version } from "./ws/server";
@@ -83,7 +83,7 @@ export class RPC implements Socket {
 
 const handlers = {
   auth: async (peers: Peers, query: krpc.KRPCQuery, unverifiedHostname: `${string}:${number}`, node: { family: "IPv4" | "IPv6"; host: string, port: number, size: number }) => {
-    const res = await HIP3_CONN_Authentication.verifyClientFromServer({ 'x-address': query.a?.['address']?.toString() ?? '0x0', 'x-hostname': unverifiedHostname, 'x-signature': query.a?.['signature']?.toString() ?? '' })
+    const res = await verifyClient({ address: query.a?.['address']?.toString() as `0x${string}`, hostname: unverifiedHostname, signature: query.a?.['signature']?.toString() ?? '', userAgent: query.a?.['userAgent']?.toString() ?? '', username: query.a?.['username']?.toString() ?? '' })
     if (Array.isArray(res)) {
       warn('DEVWARN:', `[RPC] Authentication failed ${unverifiedHostname} - ${res[1]}`)
       peers.rpc.response(node, query, { e: res, ok: 0 })
