@@ -1,5 +1,4 @@
 import type { KRPC } from 'k-rpc';
-import type { RpcSocket } from 'k-rpc-socket';
 
 import { Parser } from 'expr-eval'
 
@@ -83,7 +82,6 @@ export const authenticateServer = async (hostname: `${string}:${number}`): Promi
 
 export default class Peers {
   public readonly rpc: KRPC
-  public readonly socket: RpcSocket
   get apiPeer() {
     return this.peers.get('0x0')
   }
@@ -100,8 +98,7 @@ export default class Peers {
   private readonly peers = new PeerMap()
 
   constructor(public readonly account: Account, private readonly metadataManager: MetadataManager, private readonly repos: Repositories, private readonly db: DB, private readonly search: <T extends Request['type']>(type: T, query: string, searchPeers?: boolean) => Promise<Response<T>>) {
-    const { rpc, socket } = startRPC(this)
-    this.socket = socket
+    const { rpc } = startRPC(this)
     this.rpc = rpc
   }
 
@@ -134,18 +131,6 @@ export default class Peers {
   // TODO: endpoint soulsync can call with user feedback of "spotify result x is listenbrainz result y"
   public readonly has = (address: `0x${string}`) => address in this.peers
 
-  public readonly isConnected = async () => {
-    let i = 0
-    await new Promise(res => {
-      const id = setInterval(() => {
-        i++
-        if (i % 10 === 0) warn('WARN:', '[PEERS] Waiting for first connection...')
-        if (this.count === 0) return
-        clearInterval(id)
-        res(undefined)
-      }, 1_000)
-    })
-  }
   public isConnectionOpened(address: `0x${string}`): boolean {
     const peer = this.peers.get(address)
     if (!peer) return false
