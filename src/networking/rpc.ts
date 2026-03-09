@@ -75,6 +75,8 @@ export class RPC implements Socket {
   })
 }
 
+export const ipToHostname = new Map<string, `${string}:${number}`>()
+
 const handlers = {
   auth: async (peers: Peers, query: krpc.KRPCQuery, unverifiedHostname: `${string}:${number}`, node: { family: "IPv4" | "IPv6"; host: string, port: number, size: number }) => {
     log(`[RPC] Received auth from ${unverifiedHostname}`)
@@ -89,7 +91,8 @@ const handlers = {
     peers.rpc.response(node, query, { ...proveServer(peers.account), ok: 1 })
     if (!connections.has(hostname)) peers.add(RPC.fromInbound(peers, { address, hostname, userAgent, username }))
   },
-  msg: async (peers: Peers, query: krpc.KRPCQuery, hostname: `${string}:${number}`, node: { address: string, family: "IPv4" | "IPv6"; port: number, size: number }) => {
+  msg: async (peers: Peers, query: krpc.KRPCQuery, _hostname: `${string}:${number}`, node: { address: string, family: "IPv4" | "IPv6"; port: number, size: number }) => {
+    const hostname = ipToHostname.get(_hostname) ?? _hostname
     if (!authenticatedPeers.has(hostname)) {
       warn('DEVWARN:', `[RPC] Dropping message from unauthenticated peer ${hostname}`)
       peers.rpc.response({ ...node, host: node.address }, query, { e: [0, 'Not authenticated'], ok: 0 })

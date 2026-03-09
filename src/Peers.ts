@@ -9,7 +9,7 @@ import type { Request, Response, SearchResult } from './RequestManager'
 
 import { CONFIG } from './config'
 import { debug, log, warn } from './log';
-import { RPC, startRPC } from './networking/rpc';
+import { ipToHostname, RPC, startRPC } from './networking/rpc';
 import WebSocketClient from "./networking/ws/client";
 import { WebSocketServerConnection } from './networking/ws/server';
 import { Peer, type Socket } from "./peer";
@@ -68,6 +68,7 @@ export const authenticateServer = async (hostname: `${string}:${number}`): Promi
     const auth = AuthSchema.safeParse(JSON.parse(body)).data
     if (!auth) return [500, 'Failed to parse server authentication']
     if (auth.hostname !== hostname) {
+      if (auth.hostname !== hostname) ipToHostname.set(hostname, auth.hostname)
       debug(`[PEERS] Upgrading hostname from ${hostname} to ${auth.hostname}`)
       return await authenticateServer(auth.hostname)
     }
