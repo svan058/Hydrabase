@@ -13,7 +13,6 @@ export const CONFIG = {
   port: Number(process.env['PORT'] ?? 4545),
   preferTransport: (process.env['PREFER_TRANSPORT'] === 'UDP' ? 'UDP' : 'TCP') as 'TCP' | 'UDP',
   requireDhtConnection: process.env['REQUIRE_DHT_CONNECTION'] !== 'false',
-  requirePeerConnection: process.env['REQUIRE_PEER_CONNECTION'] !== 'false',
   rpcPrefix: 'hydra',
   soulIdCutoff: 32,
   upnpReannounce: 1800, // Seconds
