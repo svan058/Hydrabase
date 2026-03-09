@@ -64,7 +64,7 @@ export class RPC implements Socket {
   public readonly send = (message: string) => this.peers.rpc.query(this.node, { a: { d: message }, q: `${CONFIG.rpcPrefix}_msg` }, err => {
     if (err) {
       error('ERROR:', `[RPC] Message failed to send ${err.message}`)
-      this.close()
+      // this.close()
       return
     }
     debug(`[RPC] Peer acknowledged message ${this.identity.hostname}`)
@@ -94,15 +94,16 @@ const handlers = {
   msg: async (peers: Peers, query: krpc.KRPCQuery, _hostname: `${string}:${number}`, node: { address: string, family: "IPv4" | "IPv6"; port: number, size: number }) => {
     const hostname = ipToHostname.get(_hostname) ?? _hostname
     if (!authenticatedPeers.has(hostname)) {
-      warn('DEVWARN:', `[RPC] Dropping message from unauthenticated peer ${hostname}`)
+      warn('DEVWARN:', `[RPC] Received message from unauthenticated peer ${hostname}`)
       peers.rpc.response({ ...node, host: node.address }, query, { e: [0, 'Not authenticated'], ok: 0 })
       const auth = await authenticateServer(hostname)
-      if (Array.isArray(auth)) warn('DEVWARN:', `[RPC] Failed to authenticate server ${auth[1]}`)
-      else {
+      if (Array.isArray(auth)) {
+        warn('DEVWARN:', `[RPC] Failed to authenticate server ${auth[1]}`)
+        return
+      } else {
         const rpc = await RPC.fromOutbound(auth, peers)
-        if (rpc) peers.add(rpc)
+        if (!rpc || !await peers.add(rpc)) return
       }
-      return
     }
     const message = query.a?.['d']?.toString()
     if (message) {
