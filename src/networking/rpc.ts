@@ -43,7 +43,7 @@ export class RPC implements Socket {
     const err = response.r?.['e']?.[1].toString()
     if (err) return warn('DEVWARN:', `[RPC] Failed to authenticate from outbound - ${err}`)
 
-    authenticatedPeers.set(`${host}:${port}`, auth)
+    authenticatedPeers.set(`${auth.hostname}`, auth)
     return new RPC(peers, auth)
   }
   public readonly close = () => {
@@ -91,8 +91,7 @@ const handlers = {
     peers.rpc.response(node, query, { ...proveServer(peers.account), ok: 1 })
     if (!connections.has(hostname)) peers.add(RPC.fromInbound(peers, { address, hostname, userAgent, username }))
   },
-  msg: async (peers: Peers, query: krpc.KRPCQuery, _hostname: `${string}:${number}`, node: { address: string, family: "IPv4" | "IPv6"; port: number, size: number }) => {
-    const hostname = ipToHostname.get(_hostname) ?? _hostname
+  msg: async (peers: Peers, query: krpc.KRPCQuery, hostname: `${string}:${number}`, node: { address: string, family: "IPv4" | "IPv6"; port: number, size: number }) => {
     if (!authenticatedPeers.has(hostname)) {
       warn('DEVWARN:', `[RPC] Received message from unauthenticated peer ${hostname}`)
       peers.rpc.response({ ...node, host: node.address }, query, { e: [0, 'Not authenticated'], ok: 0 })
@@ -129,8 +128,10 @@ export const startRPC = (peers: Peers) => {
   const rpc = krpc({ id: Buffer.from(DHT_Node.nodeId), nodes: CONFIG.dhtBootstrapNodes.split(','), timeout: 5_000 })
   rpc.on('query', async (query, node) => {
     const q = query.q.toString()
-    const host = `${node.address}:${node.port}` as const
     if (!q.startsWith(CONFIG.rpcPrefix)) return
+    const _host = `${node.address}:${node.port}` as const
+    if (!ipToHostname.has(_host)) await authenticateServer(_host)
+    const host = ipToHostname.get(_host) ?? _host
     log(`[RPC] Received message ${q} from ${host}`)
     if (q === `${CONFIG.rpcPrefix}_auth`) await handlers.auth(peers, query, host, { ...node, host })
     else if (q === `${CONFIG.rpcPrefix}_msg`) await handlers.msg(peers, query, host, node)

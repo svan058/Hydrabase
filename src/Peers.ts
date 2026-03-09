@@ -67,8 +67,8 @@ export const authenticateServer = async (hostname: `${string}:${number}`): Promi
     const body = await response.text()
     const auth = AuthSchema.safeParse(JSON.parse(body)).data
     if (!auth) return [500, 'Failed to parse server authentication']
+    ipToHostname.set(hostname, auth.hostname)
     if (auth.hostname !== hostname) {
-      if (auth.hostname !== hostname) ipToHostname.set(hostname, auth.hostname)
       debug(`[PEERS] Upgrading hostname from ${hostname} to ${auth.hostname}`)
       return await authenticateServer(auth.hostname)
     }
