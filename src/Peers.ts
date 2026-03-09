@@ -104,15 +104,15 @@ export default class Peers {
   }
 
   // TODO: some mechanism to proactively propagate unsolicited votes
-  public async add(_peer: `${string}:${number}` | RPC | WebSocketServerConnection) {
+  public async add(_peer: `${string}:${number}` | RPC | WebSocketServerConnection): Promise<boolean> {
     const socket = await this.toSocket(_peer)
-    if (!socket) return
+    if (!socket) return false
     if (this.peers.has(socket.peer.address)) {
       if (socket.peer.address !== '0x0') {
         warn('DEVWARN:', `[PEERS] Tried to connect to existing peer again via ${socket instanceof WebSocketClient ? 'client' : socket instanceof RPC ? 'RPC' : 'server'} ${socket.peer.address} ${socket.peer.hostname}`)
         socket.close()
       }
-      return
+      return false
     }
 
     // TODO: feedback endpoints, so soulsync can force set metadata votes to 0 or 1 confidence
@@ -121,6 +121,7 @@ export default class Peers {
     this.peers.set(socket.peer.address, peer)
     cacheFile.write(JSON.stringify([...this.peers.values()].map(peer => peer.hostname)))
     this.announce(peer)
+    return true
   }
 
   public getConfidence(address: `0x${string}`): number { // TODO: Soulsync plugin - https://github.com/Nezreka/SoulSync/blob/main/Support/API.md
