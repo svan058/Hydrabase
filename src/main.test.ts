@@ -164,7 +164,11 @@ describe('HIP2', () => {
   it('concurrent requests resolve to correct nonces', async () => {
     const peer2 = peers1.connectedPeers.find(peer => peer.hostname === peers2.hostname) as Peer
     expect(peer2).toBeDefined()
-
+    let receivedResponse = false
+    peer2.socket.onMessage(msg => {
+      const {data} = z.object({ response: ResponseSchema }).safeParse(JSON.parse(msg))
+      if (data) receivedResponse = true
+    })
     const [r1, r2, r3] = await Promise.all([
       peer2.search('artists', 'elton john'),
       peer2.search('artists', 'beatles'),
@@ -174,6 +178,7 @@ describe('HIP2', () => {
     expect(Array.isArray(r1)).toBe(true)
     expect(Array.isArray(r2)).toBe(true)
     expect(Array.isArray(r3)).toBe(true)
+    expect(receivedResponse).toBe(true)
   }, { timeout: 30_000 })
 })
 
