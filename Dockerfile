@@ -25,4 +25,4 @@ EXPOSE 4545/udp
 VOLUME ["/app/data"]
 
 USER root
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/src/entrypoint.sh"]
