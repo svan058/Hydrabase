@@ -54,7 +54,7 @@ jobs:
         run: bun install
 
       - name: TypeScript
-        run: npx tsc --project src/tsconfig.json
+        run: npx tsc --project src/backend/tsconfig.json
 
   typecheck-frontend:
     runs-on: ubuntu-latest
@@ -70,7 +70,7 @@ jobs:
         run: bun install
 
       - name: TypeScript
-        run: npx tsc --project dashboard/tsconfig.json
+        run: npx tsc --project src/frontend/tsconfig.json
 
   version:
     runs-on: ubuntu-latest
