@@ -74,7 +74,11 @@ export class StatsReporter {
           uptime: peer.uptimeMs,
           userAgent: peer.userAgent,
           username: peer.username,
-          votes: peer.votes,
+          votes: {
+            albums: 0,
+            artists: 0,
+            tracks: 0
+          },
         }
       })(),
     } satisfies ApiPeer))

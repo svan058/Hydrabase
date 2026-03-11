@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { Parser } from 'expr-eval'
 
-import type { NodeStats, PeerStats, Socket, Votes } from '../types/hydrabase';
+import type { NodeStats, PeerStats, Socket } from '../types/hydrabase';
 import type { Album, Artist, MetadataPlugin, Request, Response, Track } from '../types/hydrabase-schemas';
 import type { DB, Repositories } from "./db";
 import type Peers from "./Peers";
@@ -126,13 +126,13 @@ export class Peer {
   get username() {
     return this.socket.peer.username
   }
-  get votes(): Votes {
-    return {
-      albums: 0,
-      artists: 0,
-      tracks: 0,
-    }
-  }
+  // get votes(): Votes {
+  //   return {
+  //     albums: 0,
+  //     artists: 0,
+  //     tracks: 0,
+  //   }
+  // }
 
   private _dl = 0
   private _ul = 0 

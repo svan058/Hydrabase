@@ -8,7 +8,7 @@ import { Identicon } from "./Identicon";
 import { StatusDot } from "./StatusDot";
 
 interface Props {
-  callback: (callback: ({ nonce, peer_stats }: { nonce: number; peer_stats: PeerStats, }) => void) => void
+  // callback: (callback: ({ nonce, peer_stats }: { nonce: number; peer_stats: PeerStats, }) => void) => void
   onClose: () => void
   peer: null | PeerWithCountry
   wsRef: React.RefObject<undefined | WebSocket>
@@ -137,28 +137,25 @@ const requestPeerStats = (peer: PeerWithCountry, ws: WebSocket, pending: React.R
   ws.send(JSON.stringify({ nonce, peer_stats: { address: peer.address } }))
 }
 
-export const PeerDetail = ({ callback, onClose, peer, wsRef }: Props) => {
+export const PeerDetail = ({ onClose, peer, wsRef }: Props) => {
   const [data, setData] = useState<null | PeerStats>(null)
   const [loading, setLoading] = useState(false)
   const [wsError, setWsError] = useState<null | string>(null)
   const nonceRef = useRef(Math.floor(nonceRoot * 90_000) + 10_000)
   const pending = useRef(new Map<number, (d: PeerStats) => void>())
 
-  const onPeerStats = ({ nonce, peer_stats }: { nonce: number; peer_stats: PeerStats }) => {
-    const resolve = pending.current.get(nonce)
-    if (!resolve) return
-    pending.current.delete(nonce)
-    resolve(peer_stats as PeerStats)
-  }
-  callback(onPeerStats)
+  // const onPeerStats = ({ nonce, peer_stats }: { nonce: number; peer_stats: PeerStats }) => {
+  //   const resolve = pending.current.get(nonce)
+  //   if (!resolve) return
+  //   pending.current.delete(nonce)
+  //   resolve(peer_stats as PeerStats)
+  // }
+  // callback(onPeerStats)
 
   useEffect(() => {
-    if (!peer) {
-      setData(null)
-      setWsError(null)
-      return
-    }
-    if (wsRef.current) requestPeerStats(peer, wsRef.current, pending, nonceRef, setData, setLoading, setWsError)
+    if (!peer || !wsRef.current) return
+    requestPeerStats(peer, wsRef.current, pending, nonceRef, setData, setLoading, setWsError)
   }, [peer, peer?.address, wsRef])
+
   return <Peer data={data} loading={loading} onClose={onClose} peer={peer} wsError={wsError}/>
 }
