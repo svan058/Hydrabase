@@ -1,8 +1,8 @@
-import type { Socket } from 'bun';
 import type { KRPC } from 'k-rpc';
 
 import { Parser } from 'expr-eval'
 
+import type { Socket } from '../types/hydrabase';
 import type { Request, Response, SearchResult } from '../types/hydrabase-schemas';
 import type { Account } from './Crypto/Account';
 import type { DB, Repositories } from './db'
@@ -28,8 +28,10 @@ const checkPluginMatches = (peerResults: Response<Request['type']>, confirmedHas
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { address, confidence, ...result } = _result
     const hash = BigInt(Bun.hash(JSON.stringify(_result)))
-    if (!(result.plugin_id in pluginMatches)) {pluginMatches[result.plugin_id] = { match: 0, mismatch: 0 }}
-    pluginMatches[result.plugin_id][confirmedHashes.has(hash) ? 'match' : 'mismatch']++
+    const entry = pluginMatches[result.plugin_id] ?? { match: 0, mismatch: 0 }
+    if (confirmedHashes.has(hash)) entry.match++
+    else entry.mismatch++
+    pluginMatches[result.plugin_id] = entry
   } // TODO: Store peer username
   return pluginMatches
 } // TODO: pipe all console.log's to gui
