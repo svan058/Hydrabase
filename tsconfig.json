@@ -34,5 +34,5 @@
 		"allowUnreachableCode": false,
 		"allowUnusedLabels": false
 	},
-	"references": [{"path": "./src"}, {"path": "./dashboard"}]
+	"references": [{"path": "./src/frontend"}, {"path": "./src/backend"}]
 }

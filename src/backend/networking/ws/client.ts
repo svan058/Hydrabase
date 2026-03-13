@@ -1,6 +1,6 @@
 import type { Socket } from '../../../types/hydrabase'
 import type { Account } from '../../Crypto/Account'
-import type Peers from '../../Peers'
+import type PeerManager from '../../PeerManager'
 
 import { log, warn } from '../../../utils/log'
 import { type Identity, proveClient } from '../../protocol/HIP1/handshake'
@@ -19,7 +19,7 @@ export default class WebSocketClient implements Socket {
   private retryQueue: (() => void)[] = []
   private socket!: WebSocket
 
-  constructor(public readonly peer: Identity, private readonly peers: Peers) {
+  constructor(public readonly peer: Identity, private readonly peers: PeerManager) {
     this._connect(peers.account)
   }
 

@@ -2,7 +2,7 @@ import DHT, { type DHTNode } from 'bittorrent-dht'
 import { SHA1 } from 'bun';
 import net from 'net'
 
-import type Peers from '../Peers';
+import type PeerManager from '../PeerManager';
 
 import { debug, error, log, stats, warn } from '../../utils/log';
 import { CONFIG } from '../config';
@@ -24,7 +24,7 @@ export class DHT_Node {
   private readonly knownPeers = new Set<`${string}:${number}`>([`${CONFIG.hostname}:${CONFIG.port}`,`${CONFIG.ip}:${CONFIG.port}`])
   private lastResolved = 0
 
-  constructor (peers: Peers, private readonly cacheFile = Bun.file('./data/dht-nodes.json')) {
+  constructor (peers: PeerManager, private readonly cacheFile = Bun.file('./data/dht-nodes.json')) {
     this.dht = new DHT({ bootstrap: CONFIG.dhtBootstrapNodes.split(','), host: net.isIP(CONFIG.hostname) ? CONFIG.hostname : CONFIG.ip, krpc: peers.rpc, nodeId: DHT_Node.nodeId })
     this.dht.listen(CONFIG.port, CONFIG.listenAddress, () => {
       debug(`[DHT] Listening on port ${CONFIG.port}`)

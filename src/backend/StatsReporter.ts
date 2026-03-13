@@ -2,7 +2,7 @@ import type { ApiPeer, Connection, NodeStats } from '../types/hydrabase'
 import type { MetadataPlugin } from '../types/hydrabase-schemas'
 import type { Repositories } from './db'
 import type { DHT_Node } from './networking/dht'
-import type Peers from './Peers'
+import type PeerManager from './PeerManager'
 
 import { error } from '../utils/log'
 import { CONFIG } from './config'
@@ -11,7 +11,7 @@ export class StatsReporter {
   constructor(
     private readonly address: `0x${string}`,
     private readonly plugins: MetadataPlugin[],
-    private readonly peers: Peers,
+    private readonly peers: PeerManager,
     private readonly dht: DHT_Node,
     private readonly repos: Repositories,
     private readonly intervalMs = 10_000

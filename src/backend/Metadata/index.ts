@@ -1,6 +1,6 @@
 import type { Album, Artist, MetadataPlugin, Request, Response } from '../../types/hydrabase-schemas';
 import type { Repositories } from '../db';
-import type Peers from '../Peers';
+import type PeerManager from '../PeerManager';
 
 import { log, warn } from '../../utils/log';
 import { CONFIG } from '../config';
@@ -21,7 +21,7 @@ const computeConfidence = (artistConfidences: number[], peerConfidences: number[
   return ((numerator / denominator) / 2) + 0.5
 }
 
-const matchId = (items: (Album | Artist)[], peers: Peers): undefined | { confidence: number; id: string } => {
+const matchId = (items: (Album | Artist)[], peers: PeerManager): undefined | { confidence: number; id: string } => {
   const votes = new Map<string, { itemConfidences: number[]; peerConfidences: number[], }>()
   for (const item of items) {
     const pastVotes = votes.get(item.id) ?? { itemConfidences: [], peerConfidences: [] }
@@ -57,7 +57,7 @@ export default class MetadataManager {
     return [...primary, ...secondary.filter(r => !seen.has(`${r.soul_id}:${r.address}`))]
   }
 
-  async albumTracks(albumSoulId: string, peers: Peers): Promise<Response<'album.tracks'>> {
+  async albumTracks(albumSoulId: string, peers: PeerManager): Promise<Response<'album.tracks'>> {
     const albums = this.db.album.lookupBySoulId(albumSoulId)
     const albumIds = new Map<string, string>()
     const pluginResults = await Promise.all(this.plugins.map(async p => {
@@ -81,7 +81,7 @@ export default class MetadataManager {
     return MetadataManager.merge(results, cached)
   }
 
-  async artistAlbums(artistSoulId: string, peers: Peers): Promise<Response<'artist.albums'>> {
+  async artistAlbums(artistSoulId: string, peers: PeerManager): Promise<Response<'artist.albums'>> {
     const artists = this.db.artist.lookupBySoulId(artistSoulId)
     const artistIds = new Map<string, string>()
     const pluginResults = (await Promise.all(this.plugins.map(async p => {
@@ -105,7 +105,7 @@ export default class MetadataManager {
     return MetadataManager.merge(results, cached)
   }
 
-  async artistTracks(artistSoulId: string, peers: Peers): Promise<Response<'artist.tracks'>> {
+  async artistTracks(artistSoulId: string, peers: PeerManager): Promise<Response<'artist.tracks'>> {
     const artists = this.db.artist.lookupBySoulId(artistSoulId)
     const artistIds = new Map<string, string>()
     const pluginResults = (await Promise.all(this.plugins.map(async p => {
@@ -129,7 +129,7 @@ export default class MetadataManager {
     return MetadataManager.merge(results, cached)
   }
 
-  public async handleRequest<T extends Request['type']>(request: Request & { type: T }, peers: Peers): Promise<Response<T>> {
+  public async handleRequest<T extends Request['type']>(request: Request & { type: T }, peers: PeerManager): Promise<Response<T>> {
     log(`[META] Searching for ${request.type}: ${request.query}`)
     const results: Response<T> = []
     if (request.type === 'tracks') results.push(...await this.searchTracks(request.query) as Response<T>)

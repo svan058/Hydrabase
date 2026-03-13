@@ -1,7 +1,7 @@
 import z from 'zod'
 
 import type { Peer } from '../../peer'
-import type Peers from '../../Peers'
+import type PeerManager from '../../PeerManager'
 
 import { log } from '../../../utils/log'
 
@@ -10,7 +10,7 @@ export const AnnounceSchema = z.object({ hostname: z.string().transform(a => a a
 export type Announce = z.infer<typeof AnnounceSchema>
 
 export class HIP3_Conn_Announce {
-  constructor(private readonly peer: Peer, private readonly peers: Peers) {}
+  constructor(private readonly peer: Peer, private readonly peers: PeerManager) {}
 
   async handleAnnounce(announce: Announce): Promise<void> {
     log(`[HIP3] Discovered server through ${this.peer.address}: ${announce.hostname}`)

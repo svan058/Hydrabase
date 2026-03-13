@@ -1,7 +1,7 @@
 import type { NodeStats, PeerStats, Socket } from '../types/hydrabase';
 import type { Album, Artist, MetadataPlugin, Request, Response, Track } from '../types/hydrabase-schemas';
 import type { Repositories } from "./db";
-import type Peers from "./Peers";
+import type PeerManager from "./PeerManager";
 
 import { debug, stats, warn } from '../utils/log';
 import { RPC } from './networking/rpc';
@@ -105,7 +105,7 @@ export class Peer {
 
   constructor(
     public readonly socket: Socket,
-    peers: Peers,
+    peers: PeerManager,
     private readonly repos: Repositories,
     private readonly ownPlugins: MetadataPlugin[],
     private readonly searchNode: <T extends Request['type']>(type: T, query: string, searchPeers: boolean) => Promise<Response<T>>
