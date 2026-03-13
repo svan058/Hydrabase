@@ -86,16 +86,13 @@ export const authenticateServer = async (hostname: `${string}:${number}`): Promi
   }
 }
 
-export default class Peers {
+export default class PeerManager {
   public readonly rpc: KRPC
   get apiPeer() {
     return this.peers.get('0x0')
   }
   get connectedPeers() {
     return [...this.peers.values()]
-  }
-  public get count() { 
-    return this.peers.count
   }
   get peerAddresses() {
     return this.peers.addresses

@@ -1,4 +1,3 @@
-
 export interface ApiPeer {
   address: `0x${string}`
   connection: Connection | undefined
@@ -59,11 +58,11 @@ export interface PeerStats {
   votes: { albums: number; artists: number; tracks: number }
 }
 
-
 export type PeerWithCountry = ApiPeer & {
   activity: number[]
   country: string
 };
+
 
 export interface Socket {
   readonly close: () => void
@@ -79,6 +78,11 @@ export interface Votes {
   albums: number
   artists: number
   tracks: number
+}
+
+export type WebSocketData = Connection2 & {
+  conn?: WebSocketServerConnection
+  isOpened: boolean
 }
 
 export type WsState = "closed" | "connecting" | "error" | "open"

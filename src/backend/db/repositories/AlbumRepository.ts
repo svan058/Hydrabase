@@ -13,7 +13,7 @@ export class AlbumRepository {
       .where(and(or(...artistIds.entries().map(([pluginId, artistId]) => and(eq(schema.album.plugin_id, pluginId), eq(schema.album.artist_id, artistId)))), includePeers ? undefined : eq(schema.album.address, '0x0')))
       .all()
       .filter(row => row.name && row.image_url && row.external_urls)
-      .map(row => ({
+      .map(row => ({ // TODO: Extract duplicate mapping logic into its own function
         ...row,
         address: row.address as `0x${string}`,
         album_type: row.album_type ?? '',

@@ -1,12 +1,12 @@
 import krpc from 'k-rpc'
 
 import type { Socket } from '../../types/hydrabase'
-import type Peers from '../Peers'
+import type PeerManager from '../PeerManager'
 
 import { debug, error, log, warn } from '../../utils/log'
 import { CONFIG } from '../config'
 import { FSMap } from '../FSMap'
-import { authenticateServer } from '../Peers'
+import { authenticateServer } from '../PeerManager'
 import { type Identity, proveClient, proveServer, verifyClient } from '../protocol/HIP1/handshake'
 import { DHT_Node } from './dht'
 
@@ -20,7 +20,7 @@ export class RPC implements Socket {
   private closeHandlers: (() => void)[] = []
   private readonly node: { host: string, port: number }
   private openHandler?: () => void
-  private constructor(private readonly peers: Peers, private readonly identity: { address: `0x${string}`, hostname: `${string}:${number}`, userAgent: string, username: string }) {
+  private constructor(private readonly peers: PeerManager, private readonly identity: { address: `0x${string}`, hostname: `${string}:${number}`, userAgent: string, username: string }) {
     authenticatedPeers.set(`${identity.hostname}`, identity)
     connections.set(identity.hostname, this)
     log(`[RPC] Connecting to peer ${identity.hostname}`)
@@ -29,8 +29,8 @@ export class RPC implements Socket {
     this.peer = { ...identity, hostname: identity.hostname }
     setTimeout(() => this.openHandler?.(), 0)
   }
-  static readonly fromInbound = (peers: Peers, identity: Identity): RPC => new RPC(peers, identity)
-  static readonly fromOutbound = async (identity: Identity, peers: Peers): Promise<false | RPC> => {
+  static readonly fromInbound = (peers: PeerManager, identity: Identity): RPC => new RPC(peers, identity)
+  static readonly fromOutbound = async (identity: Identity, peers: PeerManager): Promise<false | RPC> => {
     const response = await new Promise<krpc.KRPCResponse | undefined>(resolve => {
       const [host, port] = identity.hostname.split(':') as [string, `${number}`]
       peers.rpc.query({ host, port: Number(port) }, { a: proveClient(peers.account, identity.hostname, peers.hostname), q: `${CONFIG.rpcPrefix}_auth` }, (err, res) => {
@@ -73,7 +73,7 @@ export class RPC implements Socket {
 }
 
 const handlers = {
-  auth: async (peers: Peers, query: krpc.KRPCQuery, unverifiedHostname: `${string}:${number}`, node: { family: "IPv4" | "IPv6"; host: string, port: number, size: number }) => {
+  auth: async (peers: PeerManager, query: krpc.KRPCQuery, unverifiedHostname: `${string}:${number}`, node: { family: "IPv4" | "IPv6"; host: string, port: number, size: number }) => {
     log(`[RPC] Received auth from ${unverifiedHostname}`)
     const identity = await verifyClient({ address: query.a?.['address']?.toString() as `0x${string}`, hostname: unverifiedHostname, signature: query.a?.['signature']?.toString() ?? '', userAgent: query.a?.['userAgent']?.toString() ?? '', username: query.a?.['username']?.toString() ?? '' }, peers.hostname)
     if (Array.isArray(identity)) {
@@ -85,7 +85,7 @@ const handlers = {
     peers.rpc.response(node, query, { ...proveServer(peers.account, peers.hostname), ok: 1 })
     if (!connections.has(identity.hostname)) peers.add(RPC.fromInbound(peers, identity))
   },
-  msg: async (peers: Peers, query: krpc.KRPCQuery, hostname: `${string}:${number}`, node: { address: string, family: "IPv4" | "IPv6"; port: number, size: number }) => {
+  msg: async (peers: PeerManager, query: krpc.KRPCQuery, hostname: `${string}:${number}`, node: { address: string, family: "IPv4" | "IPv6"; port: number, size: number }) => {
     if (!authenticatedPeers.has(hostname)) {
       warn('DEVWARN:', `[RPC] Received message from unauthenticated peer ${hostname}`)
       peers.rpc.response({ ...node, host: node.address }, query, { e: [0, 'Not authenticated'], ok: 0 })
@@ -119,7 +119,7 @@ const handlers = {
   }
 }
 
-export const startRPC = (peers: Peers, port: number) => {
+export const startRPC = (peers: PeerManager, port: number) => {
   const rpc = krpc({ id: Buffer.from(DHT_Node.nodeId), nodes: CONFIG.dhtBootstrapNodes.split(','), timeout: 5_000 })
   rpc.bind(port)
   rpc.on('query', async (query, node) => {

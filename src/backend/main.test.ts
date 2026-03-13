@@ -2,6 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import z from 'zod'
 
+import type { WebSocketData } from '../types/hydrabase'
 import type { Peer } from './peer'
 
 import { type Response, ResponseSchema } from '../types/hydrabase-schemas'
@@ -10,10 +11,10 @@ import { Signature } from './Crypto/Signature'
 import { startDatabase } from './db'
 import MetadataManager from './Metadata'
 import ITunes from './Metadata/plugins/iTunes'
+import { startServer } from './networking/http'
 import { authenticatedPeers } from './networking/rpc'
-import { startServer, type WebSocketData } from './networking/ws/server'
 import { Node } from './Node'
-import Peers from './Peers'
+import PeerManager from './PeerManager'
 import { proveClient, proveServer, verifyClient, verifyServer } from './protocol/HIP1/handshake'
 import { type Ping, PingSchema } from './protocol/HIP2/message'
 
@@ -21,9 +22,9 @@ const NODE1_PORT = 14545
 const NODE2_PORT = 14546
 const NODE3_PORT = 14547
 
-let peers1: Peers
-let peers2: Peers
-let peers3: Peers
+let peers1: PeerManager
+let peers2: PeerManager
+let peers3: PeerManager
 let server1: Bun.Server<WebSocketData>
 let server2: Bun.Server<WebSocketData>
 let server3: Bun.Server<WebSocketData>
@@ -36,20 +37,20 @@ beforeAll(async () => {
   // Start Node 1
   const account1 = new Account(generatePrivateKey())
   const node1 = new Node(metadataManager, () => peers1)
-  peers1 = new Peers(account1, metadataManager, repos, async (type, query, searchPeers) => node1 ? await node1.search(type, query, searchPeers) : [], `127.0.0.1:${NODE1_PORT}`, NODE1_PORT)
-  server1 = startServer(account1, peers1, NODE1_PORT, '127.0.0.1', `127.0.0.1:${NODE1_PORT}`)
+  peers1 = new PeerManager(account1, metadataManager, repos, async (type, query, searchPeers) => node1 ? await node1.search(type, query, searchPeers) : [], `127.0.0.1:${NODE1_PORT}`, NODE1_PORT)
+  server1 = startServer(account1, peers1, '127.0.0.1', `127.0.0.1:${NODE1_PORT}`)
 
   // Start Node 2
   const account2 = new Account(generatePrivateKey())
   const node2 = new Node(metadataManager, () => peers2)
-  peers2 = new Peers(account2, metadataManager, repos, async (type, query, searchPeers) => node2 ? await node2.search(type, query, searchPeers) : [], `127.0.0.1:${NODE2_PORT}`, NODE2_PORT)
-  server2 = startServer(account2, peers2, NODE2_PORT, '127.0.0.1', `127.0.0.1:${NODE2_PORT}`)
+  peers2 = new PeerManager(account2, metadataManager, repos, async (type, query, searchPeers) => node2 ? await node2.search(type, query, searchPeers) : [], `127.0.0.1:${NODE2_PORT}`, NODE2_PORT)
+  server2 = startServer(account2, peers2, '127.0.0.1', `127.0.0.1:${NODE2_PORT}`)
 
   // Start Node 3
   const account3 = new Account(generatePrivateKey())
   const node3 = new Node(metadataManager, () => peers3)
-  peers3 = new Peers(account3, metadataManager, repos, async (type, query, searchPeers) => node3 ? await node3.search(type, query, searchPeers) : [], `127.0.0.1:${NODE3_PORT}`, NODE3_PORT)
-  server3 = startServer(account3, peers3, NODE3_PORT, '127.0.0.1', `127.0.0.1:${NODE3_PORT}`)
+  peers3 = new PeerManager(account3, metadataManager, repos, async (type, query, searchPeers) => node3 ? await node3.search(type, query, searchPeers) : [], `127.0.0.1:${NODE3_PORT}`, NODE3_PORT)
+  server3 = startServer(account3, peers3, '127.0.0.1', `127.0.0.1:${NODE3_PORT}`)
 
   await new Promise(res => { setTimeout(res, 10_000) })
 

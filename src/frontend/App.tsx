@@ -1,4 +1,4 @@
-/* eslint-disable max-lines-per-function */
+/* eslint-disable max-lines-per-function */ // TODO: remove this eventually - file needs to be simplified
 // TODO: search history
 
 import { useCallback, useEffect, useRef, useState } from "react"

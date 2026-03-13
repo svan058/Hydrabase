@@ -8,10 +8,11 @@ import MetadataManager from './Metadata'
 import ITunes from './Metadata/plugins/iTunes'
 import Spotify from './Metadata/plugins/Spotify'
 import { DHT_Node } from './networking/dht'
+import { startServer } from './networking/http'
 import { portForward } from './networking/upnp'
-import { buildWebUI, startServer } from './networking/ws/server'
-import Peers from './Peers'
+import PeerManager from './PeerManager'
 import { StatsReporter } from './StatsReporter'
+import { buildWebUI } from './webui'
 
 const upnp = async() => {
 try {
@@ -29,7 +30,7 @@ try {
 const {SPOTIFY_CLIENT_ID,SPOTIFY_CLIENT_SECRET} = process.env
 
 export class Node {
-  constructor(private readonly metadataManager: MetadataManager, private readonly getPeers: () => Peers) {}
+  constructor(private readonly metadataManager: MetadataManager, private readonly getPeers: () => PeerManager) {}
 
   public readonly search = async <T extends Request['type']>(type: T, query: string, searchPeers = true): Promise<Response<T>> => {
     const results = await this.metadataManager.handleRequest({ query, type }, this.getPeers())
@@ -68,14 +69,14 @@ export const startNode = async (): Promise<Node> => {
   const metadataManager = new MetadataManager([new ITunes(), ... SPOTIFY_CLIENT_ID && SPOTIFY_CLIENT_SECRET ? [new Spotify({ clientId: SPOTIFY_CLIENT_ID, clientSecret: SPOTIFY_CLIENT_SECRET })] : []], repos)
   log('[STARTUP] 6/14 Starting node')
   // eslint-disable-next-line prefer-const
-  let peers: Peers
+  let peers: PeerManager
   const node = new Node(metadataManager, () => peers)
   log('[STARTUP] 7/14 Starting peer manager')
-  peers = new Peers(account, metadataManager, repos, async (type, query, searchPeers) => node ? await node.search(type, query, searchPeers) : [], `${CONFIG.hostname}:${CONFIG.port}`, CONFIG.port)
+  peers = new PeerManager(account, metadataManager, repos, async (type, query, searchPeers) => node ? await node.search(type, query, searchPeers) : [], `${CONFIG.hostname}:${CONFIG.port}`, CONFIG.port)
   log('[STARTUP] 8/14 Building Web UI')
   await buildWebUI()
   log('[STARTUP] 9/14 Starting server')
-  startServer(account, peers, CONFIG.port, CONFIG.listenAddress, `${CONFIG.hostname}:${CONFIG.port}`)
+  startServer(account, peers, CONFIG.listenAddress, `${CONFIG.hostname}:${CONFIG.port}`)
   log('[STARTUP] 10/14 Starting DHT node')
   const dhtNode = new DHT_Node(peers)
   log('[STARTUP] 11/14 Starting stats reporter')
