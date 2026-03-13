@@ -1,3 +1,4 @@
+/* eslint-disable max-lines-per-function */
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import z from 'zod'
 
@@ -153,7 +154,7 @@ describe('HIP2', () => {
     })
     expect(results.length).toBeGreaterThan(0)
   })
-
+  
   it('concurrent requests resolve to correct nonces', async () => {
     const peer2 = peers1.connectedPeers.find(peer => peer.hostname === peers2.hostname) as Peer
     expect(peer2).toBeDefined()
@@ -167,10 +168,12 @@ describe('HIP2', () => {
       peer2.search('artists', 'beatles'),
       peer2.search('artists', 'radiohead'),
     ])
-
     expect(Array.isArray(r1)).toBe(true)
     expect(Array.isArray(r2)).toBe(true)
     expect(Array.isArray(r3)).toBe(true)
+    expect(r1.length).toBeGreaterThan(0)
+    expect(r2.length).toBeGreaterThan(0)
+    expect(r3.length).toBeGreaterThan(0)
     expect(receivedResponse).toBe(true)
   }, { timeout: 30_000 })
 })
