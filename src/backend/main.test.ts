@@ -96,17 +96,12 @@ describe('Signature', () => {
 
 describe('HIP1', () => {
   it('produces client proof that is is verified by server', async () => {
-    const account = new Account(generatePrivateKey())
-    const clientHostname = '127.0.0.1:14545'
-    const serverHostname = '127.0.0.1:14546'
-    const auth = proveClient(account, clientHostname, serverHostname)
-    expect(await verifyClient(auth, clientHostname)).not.toBeArray()
+    const auth = proveClient(peers1.account, peers2.hostname, peers1.hostname)
+    expect(await verifyClient(auth, peers2.hostname)).not.toBeArray()
   })
 
   it('produces server proof that is is verified by client', () => {
-    const account = new Account(generatePrivateKey())
-    const serverHostname = '127.0.0.1:14545'
-    expect(verifyServer(proveServer(account, serverHostname), serverHostname)).not.toBeArray()
+    expect(verifyServer(proveServer(peers1.account, peers1.hostname), peers1.hostname)).not.toBeArray()
   })
 
   it('peer 1 connected to peer 2 over TCP', async () => {
