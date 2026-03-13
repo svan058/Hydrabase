@@ -20,7 +20,7 @@ export class DHT_Node {
   }
   private cacheSize = 0
   private readonly dht: DHT
-  private readonly knownPeers: Set<`${string}:${number}`>
+  private readonly knownPeers: Set<`${string}:${number}`> // TODO: prune old peers, mem leak
   private lastResolved = 0
   constructor (peers: PeerManager, private readonly config: Config['dht'], private readonly node: Config['node'], private readonly cacheFile = Bun.file('./data/dht-nodes.json')) {
     this.knownPeers = new Set<`${string}:${number}`>([`${node.hostname}:${node.port}`,`${node.ip}:${node.port}`])
@@ -89,9 +89,12 @@ export class DHT_Node {
         setInterval(() => this.announce(), this.config.reannounce)
         res(undefined)
       } else if (this.lastResolved !== resolved) {
-        log(`[DHT] Starting... ${resolved}/${resolved+notResolved}`)
+        const pending = Object.entries(this.resolved)
+          .filter(([, v]) => !v)
+          .map(([k]) => k)
+        log(`[DHT] Starting... ${resolved}/${resolved+notResolved} (waiting on: ${pending.join(', ')})`)
         this.lastResolved = resolved
-      }
+      } // TODO: rate limiting
     }, 1_000)
   })
 

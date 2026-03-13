@@ -28,7 +28,7 @@ export const proveServer = (account: Account, node: Config['node']): Auth => {
   return {
     address: account.address,
     hostname: `${node.hostname}:${node.port}`,
-    signature: account.sign(`I am ${node.hostname}`).toString(),
+    signature: account.sign(`I am ${node.hostname}:${node.port}`).toString(),
     userAgent: `Hydrabase/${VERSION}`,
     username: node.username
   }
@@ -61,7 +61,7 @@ export const verifyClient = async (node: Config['node'], auth: Auth | { apiKey: 
   debug(`[HIP3] Verifying client ${auth.username} ${auth.address} ${auth.hostname}`)
 
   debug(`[HIP3] Verifying client address ${auth.address}`)
-  if (!Signature.fromString(auth.signature).verify(`I am connecting to ${node.hostname}`, auth.address)) return [403, 'Failed to authenticate address']
+  if (!Signature.fromString(auth.signature).verify(`I am connecting to ${node.hostname}:${node.port}`, auth.address)) return [403, 'Failed to authenticate address']
 
   const isHostnameValid = await new Promise<[number, string] | true>(resolve => {
     debug(`[HIP3] Verifying client hostname ${auth.address} ${auth.hostname}`)

@@ -86,9 +86,11 @@ beforeAll(async () => {
   peerManager3 = new PeerManager(account3, metadataManager, repos, async (type, query, searchPeers) => node3 ? await node3.search(type, query, searchPeers) : [], config3, dhtConfig, false)
   server3 = startServer(account3, peerManager3, config3, '')
 
-  await new Promise(res => { setTimeout(res, 10_000) })
+  await new Promise(res => { setTimeout(res, 5_000) })
 
   return { peers1: peerManager1, peers2: peerManager2, server1, server2 }
+}, {
+  timeout: 15_000
 })
 
 afterAll(() => {

@@ -19,10 +19,11 @@ export const startServer = (account: Account, peerManager: PeerManager, node: Co
       return new Response(res[1], { status: res[0] })
     },
     hostname: node.listenAddress,
-    port: Number(node.hostname.split(':')[1]),
+    port: node.port,
     routes: { '/auth': () => new Response(JSON.stringify(proveServer(account, node))) },
     websocket: websocketHandlers(peerManager)
   })
   debug(`[SERVER] Listening on port ${server.port}`)
   return server
 }
+// TODO: arm64 docker builds
