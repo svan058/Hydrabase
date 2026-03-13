@@ -103,8 +103,8 @@ export default class Peers {
   private readonly knownPeers = new Set<`${string}:${number}`>()
   private readonly peers = new PeerMap()
 
-  constructor(public readonly account: Account, private readonly metadataManager: MetadataManager, private readonly repos: Repositories, private readonly search: <T extends Request['type']>(type: T, query: string, searchPeers?: boolean) => Promise<Response<T>>, public readonly hostname: `${string}:${number}`) {
-    const { rpc } = startRPC(this)
+  constructor(public readonly account: Account, private readonly metadataManager: MetadataManager, private readonly repos: Repositories, private readonly search: <T extends Request['type']>(type: T, query: string, searchPeers?: boolean) => Promise<Response<T>>, public readonly hostname: `${string}:${number}`, port: number) {
+    const { rpc } = startRPC(this, port)
     this.rpc = rpc
   }
 

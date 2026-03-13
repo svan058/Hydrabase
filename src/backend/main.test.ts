@@ -35,19 +35,19 @@ beforeAll(async () => {
   // Start Node 1
   const account1 = new Account(generatePrivateKey())
   const node1 = new Node(metadataManager, () => peers1)
-  peers1 = new Peers(account1, metadataManager, repos, async (type, query, searchPeers) => node1 ? await node1.search(type, query, searchPeers) : [], `127.0.0.1:${NODE1_PORT}`)
+  peers1 = new Peers(account1, metadataManager, repos, async (type, query, searchPeers) => node1 ? await node1.search(type, query, searchPeers) : [], `127.0.0.1:${NODE1_PORT}`, NODE1_PORT)
   server1 = startServer(account1, peers1, NODE1_PORT, '127.0.0.1', `127.0.0.1:${NODE1_PORT}`)
 
   // Start Node 2
   const account2 = new Account(generatePrivateKey())
   const node2 = new Node(metadataManager, () => peers2)
-  peers2 = new Peers(account2, metadataManager, repos, async (type, query, searchPeers) => node2 ? await node2.search(type, query, searchPeers) : [], `127.0.0.1:${NODE2_PORT}`)
+  peers2 = new Peers(account2, metadataManager, repos, async (type, query, searchPeers) => node2 ? await node2.search(type, query, searchPeers) : [], `127.0.0.1:${NODE2_PORT}`, NODE2_PORT)
   server2 = startServer(account2, peers2, NODE2_PORT, '127.0.0.1', `127.0.0.1:${NODE2_PORT}`)
 
   // Start Node 3
   const account3 = new Account(generatePrivateKey())
   const node3 = new Node(metadataManager, () => peers3)
-  peers3 = new Peers(account3, metadataManager, repos, async (type, query, searchPeers) => node3 ? await node3.search(type, query, searchPeers) : [], `127.0.0.1:${NODE3_PORT}`)
+  peers3 = new Peers(account3, metadataManager, repos, async (type, query, searchPeers) => node3 ? await node3.search(type, query, searchPeers) : [], `127.0.0.1:${NODE3_PORT}`, NODE3_PORT)
   server3 = startServer(account3, peers3, NODE3_PORT, '127.0.0.1', `127.0.0.1:${NODE3_PORT}`)
 
   await new Promise(res => { setTimeout(res, 10_000) })

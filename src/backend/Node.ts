@@ -71,7 +71,7 @@ export const startNode = async (): Promise<Node> => {
   let peers: Peers
   const node = new Node(metadataManager, () => peers)
   log('[STARTUP] 7/14 Starting peer manager')
-  peers = new Peers(account, metadataManager, repos, async (type, query, searchPeers) => node ? await node.search(type, query, searchPeers) : [], `${CONFIG.hostname}:${CONFIG.port}`)
+  peers = new Peers(account, metadataManager, repos, async (type, query, searchPeers) => node ? await node.search(type, query, searchPeers) : [], `${CONFIG.hostname}:${CONFIG.port}`, CONFIG.port)
   log('[STARTUP] 8/14 Building Web UI')
   await buildWebUI()
   log('[STARTUP] 9/14 Starting server')
