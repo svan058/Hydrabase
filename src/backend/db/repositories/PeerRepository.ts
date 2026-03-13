@@ -4,8 +4,6 @@ import { Parser } from 'expr-eval'
 import type { DB } from '..'
 import type { MetadataPlugin } from '../../../types/hydrabase-schemas'
 
-import { CONFIG } from '../../config'
-
 export interface PeerStats {
   address: `0x${string}`
   peerPlugins: string[]
@@ -24,7 +22,7 @@ export interface PluginAccuracy {
 const avg = (numbers: number[]) => numbers.reduce((a, b) => a + b, 0) / numbers.length
 
 export class PeerRepository {
-  constructor(private readonly db: DB) {}
+  constructor(private readonly db: DB, private readonly pluginConfidenceFormula: string) {}
 
   collectPeerStats(address: `0x${string}`, installedPlugins: MetadataPlugin[]): PeerStats {
     const installedPluginIds = new Set(installedPlugins.map(p => p.id))
@@ -85,7 +83,7 @@ export class PeerRepository {
     const scores = Object.entries(merged)
       .filter(([pluginId]) => installedPluginIds.has(pluginId))
       .map(([, { match, mismatch }]) =>
-        Parser.evaluate(CONFIG.pluginConfidence, { x: match, y: mismatch })
+        Parser.evaluate(this.pluginConfidenceFormula, { x: match, y: mismatch })
       )
 
     return scores.length > 0 ? avg(scores) : 0

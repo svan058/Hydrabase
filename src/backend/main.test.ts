@@ -2,7 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import z from 'zod'
 
-import type { WebSocketData } from '../types/hydrabase'
+import type { Config, WebSocketData } from '../types/hydrabase'
 import type { Peer } from './peer'
 
 import { type Response, ResponseSchema } from '../types/hydrabase-schemas'
@@ -18,43 +18,77 @@ import PeerManager from './PeerManager'
 import { proveClient, proveServer, verifyClient, verifyServer } from './protocol/HIP1/handshake'
 import { type Ping, PingSchema } from './protocol/HIP2/message'
 
-const NODE1_PORT = 14545
-const NODE2_PORT = 14546
-const NODE3_PORT = 14547
+const config1 = {
+  hostname: '127.0.0.1',
+  ip: '127.0.0.1',
+  listenAddress: '127.0.0.1',
+  port: 14545,
+  preferTransport: 'TCP',
+  username: 'TestNode1'
+} satisfies Config['node']
+const config2 = {
+  hostname: '127.0.0.1',
+  ip: '127.0.0.1',
+  listenAddress: '127.0.0.1',
+  port: 14546,
+  preferTransport: 'TCP',
+  username: 'TestNode2'
+} satisfies Config['node']
+const config3 = {
+  hostname: '127.0.0.1',
+  ip: '127.0.0.1',
+  listenAddress: '127.0.0.1',
+  port: 14547,
+  preferTransport: 'UDP',
+  username: 'TestNode3'
+} satisfies Config['node']
 
-let peers1: PeerManager
-let peers2: PeerManager
-let peers3: PeerManager
+const dhtConfig = {
+  bootstrapNodes: '',
+  reannounce: 24*60*60*1_000,
+  requireConnection: true,
+  roomSeed: 'hydrabase_test',
+  rpcPrefix: 'hydra_test',
+} satisfies Config['dht']
+
+const formulas = {
+  finalConfidence: '0.5',
+  pluginConfidence: '0.5'
+} satisfies Config['formulas']
+
+let peerManager1: PeerManager
+let peerManager2: PeerManager
+let peerManager3: PeerManager
 let server1: Bun.Server<WebSocketData>
 let server2: Bun.Server<WebSocketData>
 let server3: Bun.Server<WebSocketData>
 
 beforeAll(async () => {
   authenticatedPeers.clear()
-  const repos = startDatabase()
-  const metadataManager = new MetadataManager([new ITunes()], repos)
+  const repos = startDatabase(formulas.pluginConfidence)
+  const metadataManager = new MetadataManager([new ITunes()], repos, 32)
 
   // Start Node 1
   const account1 = new Account(generatePrivateKey())
-  const node1 = new Node(metadataManager, () => peers1)
-  peers1 = new PeerManager(account1, metadataManager, repos, async (type, query, searchPeers) => node1 ? await node1.search(type, query, searchPeers) : [], `127.0.0.1:${NODE1_PORT}`, NODE1_PORT)
-  server1 = startServer(account1, peers1, '127.0.0.1', `127.0.0.1:${NODE1_PORT}`)
+  const node1 = new Node(metadataManager, () => peerManager1, formulas)
+  peerManager1 = new PeerManager(account1, metadataManager, repos, async (type, query, searchPeers) => node1 ? await node1.search(type, query, searchPeers) : [], config1, dhtConfig, false)
+  server1 = startServer(account1, peerManager1, config1, '')
 
   // Start Node 2
   const account2 = new Account(generatePrivateKey())
-  const node2 = new Node(metadataManager, () => peers2)
-  peers2 = new PeerManager(account2, metadataManager, repos, async (type, query, searchPeers) => node2 ? await node2.search(type, query, searchPeers) : [], `127.0.0.1:${NODE2_PORT}`, NODE2_PORT)
-  server2 = startServer(account2, peers2, '127.0.0.1', `127.0.0.1:${NODE2_PORT}`)
+  const node2 = new Node(metadataManager, () => peerManager2, formulas)
+  peerManager2 = new PeerManager(account2, metadataManager, repos, async (type, query, searchPeers) => node2 ? await node2.search(type, query, searchPeers) : [], config2, dhtConfig, false)
+  server2 = startServer(account2, peerManager2, config2, '')
 
   // Start Node 3
   const account3 = new Account(generatePrivateKey())
-  const node3 = new Node(metadataManager, () => peers3)
-  peers3 = new PeerManager(account3, metadataManager, repos, async (type, query, searchPeers) => node3 ? await node3.search(type, query, searchPeers) : [], `127.0.0.1:${NODE3_PORT}`, NODE3_PORT)
-  server3 = startServer(account3, peers3, '127.0.0.1', `127.0.0.1:${NODE3_PORT}`)
+  const node3 = new Node(metadataManager, () => peerManager3, formulas)
+  peerManager3 = new PeerManager(account3, metadataManager, repos, async (type, query, searchPeers) => node3 ? await node3.search(type, query, searchPeers) : [], config3, dhtConfig, false)
+  server3 = startServer(account3, peerManager3, config3, '')
 
   await new Promise(res => { setTimeout(res, 10_000) })
 
-  return { peers1, peers2, server1, server2 }
+  return { peers1: peerManager1, peers2: peerManager2, server1, server2 }
 })
 
 afterAll(() => {
@@ -98,38 +132,38 @@ describe('Signature', () => {
 
 describe('HIP1', () => {
   it('produces client proof that is is verified by server', async () => {
-    const auth = proveClient(peers1.account, peers2.hostname, peers1.hostname)
-    expect(await verifyClient(auth, peers2.hostname)).not.toBeArray()
+    const auth = proveClient(peerManager1.account, config1, `${config2.hostname}:${config2.port}`)
+    expect(await verifyClient(config2, auth, '')).not.toBeArray()
   })
 
   it('produces server proof that is is verified by client', () => {
-    expect(verifyServer(proveServer(peers1.account, peers1.hostname), peers1.hostname)).not.toBeArray()
+    expect(verifyServer(proveServer(peerManager1.account, config1), `${config1.hostname}:${config1.port}`)).not.toBeArray()
   })
 
   it('peer 1 connected to peer 2 over TCP', async () => {
-    expect(await peers1.add(peers2.hostname, 'TCP')).toBe(true)
+    expect(await peerManager1.add(`${config2.hostname}:${config2.port}`, 'TCP')).toBe(true)
   })
 
   it('connecting to existing peer should throw', async () => {
-    expect(await peers1.add(peers2.hostname, 'TCP')).toBe(false)
+    expect(await peerManager1.add(`${config2.hostname}:${config2.port}`, 'TCP')).toBe(false)
   })
 
   it('peer 2 connected to peer 3 over UDP', async () => {
-    expect(await peers2.add(peers3.hostname, 'UDP')).toBe(true)
+    expect(await peerManager2.add(`${config3.hostname}:${config3.port}`, 'UDP')).toBe(true)
   })
 
   it('peers 1 and 2 have connected to each other', async () => {
     await new Promise(res => { setTimeout(res, 1_000) })
-    const server = peers1.connectedPeers.find(peer => peer.hostname === peers2.hostname)
+    const server = peerManager1.connectedPeers.find(peer => peer.hostname === `${config2.hostname}:${config2.port}`)
     expect(server).toBeDefined()
-    const client = peers2.connectedPeers.find(peer => peer.hostname === peers1.hostname)
+    const client = peerManager2.connectedPeers.find(peer => peer.hostname === `${config1.hostname}:${config1.port}`)
     expect(client).toBeDefined()
   })
 })
 
 describe('HIP2', () => {
   it('received pong from ping', async () => {
-    const peer2 = peers1.connectedPeers.find(peer => peer.hostname === peers2.hostname) as Peer
+    const peer2 = peerManager1.connectedPeers.find(peer => peer.hostname === `${config2.hostname}:${config2.port}`) as Peer
     expect(peer2).toBeDefined()
     const time = Number(new Date())
     peer2.send({ nonce: 3, ping: { time } })
@@ -144,7 +178,7 @@ describe('HIP2', () => {
   })
 
   it('received response from request', async () => {
-    const peer2 = peers1.connectedPeers.find(peer => peer.hostname === peers2.hostname) as Peer
+    const peer2 = peerManager1.connectedPeers.find(peer => peer.hostname === `${config2.hostname}:${config2.port}`) as Peer
     expect(peer2).toBeDefined()
     peer2.send({ nonce: 3, request: { query: 'elton john', type: 'artists' } })
     const results = await new Promise<Response>(res => {
@@ -157,7 +191,7 @@ describe('HIP2', () => {
   })
   
   it('concurrent requests resolve to correct nonces', async () => {
-    const peer2 = peers1.connectedPeers.find(peer => peer.hostname === peers2.hostname) as Peer
+    const peer2 = peerManager1.connectedPeers.find(peer => peer.hostname === `${config2.hostname}:${config2.port}`) as Peer
     expect(peer2).toBeDefined()
     let receivedResponse = false
     peer2.socket.onMessage(msg => {
@@ -181,8 +215,8 @@ describe('HIP2', () => {
 
 describe('HIP3', () => {
   it('peers 1 and 3 discovered each other through peer 2', () => {
-    const peer3 = peers1.connectedPeers.find(peer => peer.hostname === peers3.hostname) as Peer
-    const peer1 = peers3.connectedPeers.find(peer => peer.hostname === peers1.hostname) as Peer
+    const peer3 = peerManager1.connectedPeers.find(peer => peer.hostname === `${config3.hostname}:${config3.port}`) as Peer
+    const peer1 = peerManager3.connectedPeers.find(peer => peer.hostname === `${config1.hostname}:${config1.port}`) as Peer
     expect(peer1).toBeDefined()
     expect(peer3).toBeDefined()
   })

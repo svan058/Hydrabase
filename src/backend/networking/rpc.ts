@@ -1,10 +1,9 @@
 import krpc from 'k-rpc'
 
-import type { Socket } from '../../types/hydrabase'
+import type { Config, Socket } from '../../types/hydrabase'
 import type PeerManager from '../PeerManager'
 
 import { debug, error, log, warn } from '../../utils/log'
-import { CONFIG } from '../config'
 import { FSMap } from '../FSMap'
 import { authenticateServer } from '../PeerManager'
 import { type Identity, proveClient, proveServer, verifyClient } from '../protocol/HIP1/handshake'
@@ -20,7 +19,7 @@ export class RPC implements Socket {
   private closeHandlers: (() => void)[] = []
   private readonly node: { host: string, port: number }
   private openHandler?: () => void
-  private constructor(private readonly peers: PeerManager, private readonly identity: { address: `0x${string}`, hostname: `${string}:${number}`, userAgent: string, username: string }) {
+  private constructor(private readonly peers: PeerManager, private readonly identity: { address: `0x${string}`, hostname: `${string}:${number}`, userAgent: string, username: string }, private readonly dhtConfig: Config['dht']) {
     authenticatedPeers.set(`${identity.hostname}`, identity)
     connections.set(identity.hostname, this)
     log(`[RPC] Connecting to peer ${identity.hostname}`)
@@ -29,11 +28,11 @@ export class RPC implements Socket {
     this.peer = { ...identity, hostname: identity.hostname }
     setTimeout(() => this.openHandler?.(), 0)
   }
-  static readonly fromInbound = (peers: PeerManager, identity: Identity): RPC => new RPC(peers, identity)
-  static readonly fromOutbound = async (identity: Identity, peers: PeerManager): Promise<false | RPC> => {
+  static readonly fromInbound = (peers: PeerManager, identity: Identity, dhtConfig: Config['dht']): RPC => new RPC(peers, identity, dhtConfig)
+  static readonly fromOutbound = async (identity: Identity, peers: PeerManager, config: Config['dht'], node: Config['node']): Promise<false | RPC> => {
     const response = await new Promise<krpc.KRPCResponse | undefined>(resolve => {
       const [host, port] = identity.hostname.split(':') as [string, `${number}`]
-      peers.rpc.query({ host, port: Number(port) }, { a: proveClient(peers.account, identity.hostname, peers.hostname), q: `${CONFIG.rpcPrefix}_auth` }, (err, res) => {
+      peers.rpc.query({ host, port: Number(port) }, { a: proveClient(peers.account, node, identity.hostname), q: `${config.rpcPrefix}_auth` }, (err, res) => {
         if (err) warn('DEVWARN:', `[RPC] Failed to send auth to ${identity.hostname} - ${err.message}`)
         resolve(res)
       })
@@ -42,7 +41,7 @@ export class RPC implements Socket {
     const err = response.r?.['e']?.[1].toString()
     if (err) return warn('DEVWARN:', `[RPC] Failed to authenticate from outbound - ${err}`)
 
-    return new RPC(peers, identity)
+    return new RPC(peers, identity, config)
   }
   public readonly close = () => {
     this.isOpened = false
@@ -58,7 +57,7 @@ export class RPC implements Socket {
   public onOpen(handler: () => void) {
     this.openHandler = () => handler()
   }
-  public readonly send = (message: string) => this.peers.rpc.query(this.node, { a: { d: message }, q: `${CONFIG.rpcPrefix}_msg` }, err => {
+  public readonly send = (message: string) => this.peers.rpc.query(this.node, { a: { d: message }, q: `${this.dhtConfig.rpcPrefix}_msg` }, err => {
     if (err) {
       error('ERROR:', `[RPC] Message failed to send ${err.message}`)
       // This.close()
@@ -73,64 +72,64 @@ export class RPC implements Socket {
 }
 
 const handlers = {
-  auth: async (peers: PeerManager, query: krpc.KRPCQuery, unverifiedHostname: `${string}:${number}`, node: { family: "IPv4" | "IPv6"; host: string, port: number, size: number }) => {
-    log(`[RPC] Received auth from ${unverifiedHostname}`)
-    const identity = await verifyClient({ address: query.a?.['address']?.toString() as `0x${string}`, hostname: unverifiedHostname, signature: query.a?.['signature']?.toString() ?? '', userAgent: query.a?.['userAgent']?.toString() ?? '', username: query.a?.['username']?.toString() ?? '' }, peers.hostname)
+  auth: async (peers: PeerManager, query: krpc.KRPCQuery, peer: { host: string, port: number }, node: Config['node'], apiKey: false | string, dhtConfig: Config['dht']) => {
+    log(`[RPC] Received auth from ${peer.host}:${peer.port}`)
+    const identity = await verifyClient(node, { address: query.a?.['address']?.toString() as `0x${string}`, hostname: `${peer.host}:${peer.port}`, signature: query.a?.['signature']?.toString() ?? '', userAgent: query.a?.['userAgent']?.toString() ?? '', username: query.a?.['username']?.toString() ?? '' }, apiKey)
     if (Array.isArray(identity)) {
-      warn('DEVWARN:', `[RPC] Authentication failed ${unverifiedHostname} - ${identity[1]}`)
-      peers.rpc.response(node, query, { e: [500, 'Failed to verify client'], ok: 0 })
+      warn('DEVWARN:', `[RPC] Authentication failed ${peer.host}:${peer.port} - ${identity[1]}`)
+      peers.rpc.response(peer, query, { e: [500, 'Failed to verify client'], ok: 0 })
       return
     }
     log(`[RPC] Authenticated peer ${identity.username} ${identity.address} at ${identity.hostname}`)
-    peers.rpc.response(node, query, { ...proveServer(peers.account, peers.hostname), ok: 1 })
-    if (!connections.has(identity.hostname)) peers.add(RPC.fromInbound(peers, identity))
+    peers.rpc.response(peer, query, { ...proveServer(peers.account, node), ok: 1 })
+    if (!connections.has(identity.hostname)) peers.add(RPC.fromInbound(peers, identity, dhtConfig))
   },
-  msg: async (peers: PeerManager, query: krpc.KRPCQuery, hostname: `${string}:${number}`, node: { address: string, family: "IPv4" | "IPv6"; port: number, size: number }) => {
-    if (!authenticatedPeers.has(hostname)) {
-      warn('DEVWARN:', `[RPC] Received message from unauthenticated peer ${hostname}`)
-      peers.rpc.response({ ...node, host: node.address }, query, { e: [0, 'Not authenticated'], ok: 0 })
-      const auth = await authenticateServer(hostname)
+  msg: async (peers: PeerManager, query: krpc.KRPCQuery, dhtConfig: Config['dht'], node: Config['node'], peer: { host: string, port: number }) => {
+    if (!authenticatedPeers.has(`${peer.host}:${peer.port}`)) {
+      warn('DEVWARN:', `[RPC] Received message from unauthenticated peer ${peer.host}:${peer.port}`)
+      peers.rpc.response(peer, query, { e: [0, 'Not authenticated'], ok: 0 })
+      const auth = await authenticateServer(`${peer.host}:${peer.port}`)
       if (Array.isArray(auth)) {
         warn('DEVWARN:', `[RPC] Failed to authenticate server ${auth[1]}`)
         return
       } 
-      const rpc = await RPC.fromOutbound(auth, peers)
+      const rpc = await RPC.fromOutbound(auth, peers, dhtConfig, node)
       if (!rpc || !await peers.add(rpc)) return
     }
     const message = query.a?.['d']?.toString()
     if (message) {
-      const connection = connections.get(hostname)
+      const connection = connections.get(`${peer.host}:${peer.port}`)
       if (connection) {
         connection.messageHandlers.forEach(handler => {
           handler(message)
         })
-        if (connection.messageHandlers.length === 0) warn('DEVWARN:', `[RPC] Couldn't find message handler ${hostname}`)
+        if (connection.messageHandlers.length === 0) warn('DEVWARN:', `[RPC] Couldn't find message handler ${peer.host}:${peer.port}`)
       } else {
-        warn('DEVWARN:', `[RPC] Couldn't find connection ${hostname}`)
-        const auth = await authenticateServer(hostname)
+        warn('DEVWARN:', `[RPC] Couldn't find connection ${`${peer.host}:${peer.port}`}`)
+        const auth = await authenticateServer(`${peer.host}:${peer.port}`)
         if (Array.isArray(auth)) warn('DEVWARN:', `[RPC] Failed to authenticate server ${auth[1]}`)
         else {
-          const rpc = await RPC.fromOutbound(auth, peers)
+          const rpc = await RPC.fromOutbound(auth, peers, dhtConfig, node)
           if (rpc) peers.add(rpc)
         }
       }
     }
-    peers.rpc.response({ ...node, host: node.address }, query, { ok: 1 })
+    peers.rpc.response(peer, query, { ok: 1 })
   }
 }
 
-export const startRPC = (peers: PeerManager, port: number) => {
-  const rpc = krpc({ id: Buffer.from(DHT_Node.nodeId), nodes: CONFIG.dhtBootstrapNodes.split(','), timeout: 5_000 })
-  rpc.bind(port)
-  rpc.on('query', async (query, node) => {
+export const startRPC = (peers: PeerManager, node: Config['node'], config: Config['dht'], apiKey: false | string) => {
+  const rpc = krpc({ id: Buffer.from(DHT_Node.getNodeId(node)), nodes: config.bootstrapNodes.split(','), timeout: 5_000 })
+  rpc.bind(node.port)
+  rpc.on('query', async (query, peer) => {
     const q = query.q.toString()
-    if (!q.startsWith(CONFIG.rpcPrefix)) return
-    const _host = `${node.address}:${node.port}` as const
+    if (!q.startsWith(config.rpcPrefix)) return
+    const _host = `${peer.address}:${peer.port}` as const
     if (!authenticatedPeers.has(_host)) await authenticateServer(_host)
     const host = authenticatedPeers.get(_host)?.hostname ?? _host
     log(`[RPC] Received message ${q} from ${host}`)
-    if (q === `${CONFIG.rpcPrefix}_auth`) await handlers.auth(peers, query, host, { ...node, host })
-    else if (q === `${CONFIG.rpcPrefix}_msg`) await handlers.msg(peers, query, host, node)
+    if (q === `${config.rpcPrefix}_auth`) await handlers.auth(peers, query, { host: peer.address, port: peer.port }, node, apiKey, config)
+    else if (q === `${config.rpcPrefix}_msg`) await handlers.msg(peers, query, config, node, { host: peer.address, port: peer.port })
     else warn('DEVWARN:', `[RPC] Received message from ${host}: ${q}`, {query})
   })
   return { rpc }

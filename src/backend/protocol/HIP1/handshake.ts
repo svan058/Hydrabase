@@ -1,11 +1,11 @@
 import z from "zod";
 
+import type { Config } from "../../../types/hydrabase";
 import type { Account } from "../../Crypto/Account";
 
 // @ts-expect-error: This is supported by bun
 import VERSION from "../../../../VERSION" with { type: "text" };
 import { debug, warn } from "../../../utils/log";
-import { CONFIG } from "../../config";
 import { Signature } from "../../Crypto/Signature";
 import { authenticateServer } from "../../PeerManager";
 
@@ -23,14 +23,14 @@ export const AuthSchema = IdentitySchema.extend({
 export type Auth = z.infer<typeof AuthSchema>
 export type Identity = z.infer<typeof IdentitySchema>
 
-export const proveServer = (account: Account, selfHostname: `${string}:${number}`): Auth => {
+export const proveServer = (account: Account, node: Config['node']): Auth => {
   debug(`[HIP3] Proving server`)
   return {
     address: account.address,
-    hostname: selfHostname,
-    signature: account.sign(`I am ${selfHostname}`).toString(),
+    hostname: `${node.hostname}:${node.port}`,
+    signature: account.sign(`I am ${node.hostname}`).toString(),
     userAgent: `Hydrabase/${VERSION}`,
-    username: CONFIG.username
+    username: node.username
   }
 }
 
@@ -40,28 +40,28 @@ export const verifyServer = (auth: Auth, hostname: string): [number, string] | t
   return true
 }
 
-export const proveClient = (account: Account, hostname: `${string}:${number}`, selfHostname: `${string}:${number}`, x = false): Auth => {
+export const proveClient = (account: Account, node: Config['node'], hostname: `${string}:${number}`, x = false): Auth => {
   debug(`[HIP3] Proving client to ${hostname}`)
   const result = {
     address: account.address,
-    hostname: selfHostname,
+    hostname: `${node.hostname}:${node.port}`,
     signature: account.sign(`I am connecting to ${hostname}`).toString(),
     userAgent: `Hydrabase/${VERSION}`,
-    username: CONFIG.username
+    username: node.username
   } as const
   return x ? Object.fromEntries(Object.entries(result).map(entry => ([`x-${entry[0]}`, entry[1]]))) as Auth : result
 }
 
-export const verifyClient = async (auth: Auth | { apiKey: string }, selfHostname: `${string}:${number}`): Promise<[number, string] | Identity> => {
+export const verifyClient = async (node: Config['node'], auth: Auth | { apiKey: string }, apiKey: false | string): Promise<[number, string] | Identity> => {
   if ('apiKey' in auth) {
     debug(`[HIP3] Verifying API`)
-    if (auth.apiKey !== CONFIG.apiKey) return [500, 'Invalid API Key']
-    return { address: '0x0', hostname: 'API:4545', userAgent: `Hydrabase-API/${VERSION}`, username: CONFIG.username }
+    if (auth.apiKey !== apiKey) return [500, 'Invalid API Key']
+    return { address: '0x0', hostname: 'API:4545', userAgent: `Hydrabase-API/${VERSION}`, username: node.username }
   }
   debug(`[HIP3] Verifying client ${auth.username} ${auth.address} ${auth.hostname}`)
 
   debug(`[HIP3] Verifying client address ${auth.address}`)
-  if (!Signature.fromString(auth.signature).verify(`I am connecting to ${selfHostname}`, auth.address)) return [403, 'Failed to authenticate address']
+  if (!Signature.fromString(auth.signature).verify(`I am connecting to ${node.hostname}`, auth.address)) return [403, 'Failed to authenticate address']
 
   const isHostnameValid = await new Promise<[number, string] | true>(resolve => {
     debug(`[HIP3] Verifying client hostname ${auth.address} ${auth.hostname}`)

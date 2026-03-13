@@ -3,6 +3,35 @@ export interface ApiPeer {
   connection: Connection | undefined
 }
 
+export interface Config {
+  apiKey: false | string
+  bootstrapPeers: string
+  dht: {
+    bootstrapNodes: string
+    reannounce: number
+    requireConnection: boolean
+    roomSeed: string
+    rpcPrefix: string
+  }
+  formulas: {
+    finalConfidence: string
+    pluginConfidence: string
+  }
+  node: {
+    hostname: string
+    ip: string
+    listenAddress: string
+    port: number
+    preferTransport: 'TCP' | 'UDP'
+    username: string
+  }
+  soulIdCutoff: number
+  upnp: {
+    reannounce: number
+    ttl: number
+  }
+}
+
 export interface Connection {
   address: `0x${string}`
   confidence: number
@@ -58,11 +87,11 @@ export interface PeerStats {
   votes: { albums: number; artists: number; tracks: number }
 }
 
+
 export type PeerWithCountry = ApiPeer & {
   activity: number[]
   country: string
 };
-
 
 export interface Socket {
   readonly close: () => void

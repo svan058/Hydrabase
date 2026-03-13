@@ -2,14 +2,13 @@ import DHT, { type DHTNode } from 'bittorrent-dht'
 import { SHA1 } from 'bun';
 import net from 'net'
 
+import type { Config } from '../../types/hydrabase';
 import type PeerManager from '../PeerManager';
 
 import { debug, error, log, stats, warn } from '../../utils/log';
-import { CONFIG } from '../config';
 import { authenticatedPeers } from './rpc';
 
 export class DHT_Node {
-  static readonly nodeId = SHA1.hash(`${CONFIG.hostname}:${CONFIG.port}`, 'hex')
   public readonly resolved = {
     cacheLoaded: false,
     connected: false,
@@ -21,16 +20,16 @@ export class DHT_Node {
   }
   private cacheSize = 0
   private readonly dht: DHT
-  private readonly knownPeers = new Set<`${string}:${number}`>([`${CONFIG.hostname}:${CONFIG.port}`,`${CONFIG.ip}:${CONFIG.port}`])
+  private readonly knownPeers: Set<`${string}:${number}`>
   private lastResolved = 0
-
-  constructor (peers: PeerManager, private readonly cacheFile = Bun.file('./data/dht-nodes.json')) {
-    this.dht = new DHT({ bootstrap: CONFIG.dhtBootstrapNodes.split(','), host: net.isIP(CONFIG.hostname) ? CONFIG.hostname : CONFIG.ip, krpc: peers.rpc, nodeId: DHT_Node.nodeId })
-    this.dht.listen(CONFIG.port, CONFIG.listenAddress, () => {
-      debug(`[DHT] Listening on port ${CONFIG.port}`)
+  constructor (peers: PeerManager, private readonly config: Config['dht'], private readonly node: Config['node'], private readonly cacheFile = Bun.file('./data/dht-nodes.json')) {
+    this.knownPeers = new Set<`${string}:${number}`>([`${node.hostname}:${node.port}`,`${node.ip}:${node.port}`])
+    this.dht = new DHT({ bootstrap: config.bootstrapNodes.split(','), host: net.isIP(node.hostname) ? node.hostname : node.ip, krpc: peers.rpc, nodeId: DHT_Node.getNodeId(node) })
+    this.dht.listen(node.port, node.listenAddress, () => {
+      debug(`[DHT] Listening on port ${node.port}`)
       this.resolved.listening = true
     })
-    CONFIG.dhtBootstrapNodes.split(',').forEach(node => {
+    config.bootstrapNodes.split(',').forEach(node => {
       const [host, port] = node.split(':') as [string, `${number}`]
       this.dht.addNode({ host, port: Number(port) })
     })
@@ -65,7 +64,7 @@ export class DHT_Node {
     })
     this.dht.on('announce', (peer, _infoHash) => {
       const hostname = authenticatedPeers.get(`${peer.host}:${peer.port}`)?.hostname ?? `${peer.host}:${peer.port}`
-      if (_infoHash.toString('hex') !== DHT_Node.getRoomId()) return
+      if (_infoHash.toString('hex') !== DHT_Node.getRoomId(config.roomSeed)) return
       if (this.knownPeers.has(hostname)) return
       this.knownPeers.add(hostname)
       log(`[DHT] Received announce from ${hostname}`)
@@ -73,19 +72,21 @@ export class DHT_Node {
     })
   }
 
-  static readonly getRoomId = () => Bun.SHA1.hash(CONFIG.dhtRoomSeed + String(Math.round(Date.now()/1000/60/60/6)), 'hex')
+  static readonly getNodeId = (node: Config['node']) => SHA1.hash(`${node.hostname}:${node.port}`, 'hex')
+
+  static readonly getRoomId = (roomSeed: string) => Bun.SHA1.hash(roomSeed + String(Math.round(Date.now()/1000/60/60/6)), 'hex')
 
   public readonly add = (node: DHTNode) => this.dht.addNode(node)
 
   public readonly isReady = () => new Promise(res => {
     const id = setInterval(() => {
       const { notResolved, resolved } = this.countResolved()
-      if (!CONFIG.requireDhtConnection) this.resolved.connected = true
+      if (!this.config.requireConnection) this.resolved.connected = true
       if (notResolved === 0) {
         log(`[DHT] Started... ${resolved}/${resolved}`)
         clearInterval(id)
         this.announce()
-        setInterval(() => this.announce(), CONFIG.dhtReannounce)
+        setInterval(() => this.announce(), this.config.reannounce)
         res(undefined)
       } else if (this.lastResolved !== resolved) {
         log(`[DHT] Starting... ${resolved}/${resolved+notResolved}`)
@@ -95,8 +96,8 @@ export class DHT_Node {
   })
 
   private readonly announce = () => {
-    const room = DHT_Node.getRoomId()
-    this.dht.announce(room, CONFIG.port, err => { if (err) warn('WARN:', `[DHT] An error occurred during announce - ${err.message} ${this.nodes.length}`) })
+    const room = DHT_Node.getRoomId(this.config.roomSeed)
+    this.dht.announce(room, this.node.port, err => { if (err) warn('WARN:', `[DHT] An error occurred during announce - ${err.message} ${this.nodes.length}`) })
     this.dht.lookup(room, err => { if (err) error('ERROR:', `[DHT] An error occurred during lookup ${err.message}`) })
   }
 
