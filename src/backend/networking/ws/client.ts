@@ -83,7 +83,6 @@ export default class WebSocketClient implements Socket {
       const errorMsg = (err as unknown as { message: string }).message
       warn('DEVWARN:', `[CLIENT] Connection failed with server ${this.peer.username} ${this.peer.address} ws://${this.peer.hostname} - ${errorMsg}`)
       
-      // For HTTP status failures, try to fetch the rejection reason from server
       if (errorMsg.includes('Expected 101 status code') || errorMsg.includes('status code')) {
         this._fetchRejectionReason()
       }
