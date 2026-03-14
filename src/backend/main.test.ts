@@ -1,4 +1,4 @@
-/* eslint-disable max-lines, max-lines-per-function */
+/* eslint-disable max-lines, max-lines-per-function, require-atomic-updates */
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import z from 'zod'
 
@@ -527,3 +527,116 @@ describe('Peer search integration', () => {
 
 // TODO: test dht
 // TODO: reconnect to a disconnected peer
+
+
+describe('Transport-specific authentication', () => {
+  it('authenticateServerHTTP handles successful auth', async () => {
+    // Mock successful HTTP response
+    const originalFetch = globalThis.fetch
+    try {
+      globalThis.fetch = (() => Promise.resolve(new Response(JSON.stringify(proveServer(peerManager2.account, config2))))) as unknown as typeof fetch
+      
+      const { authenticateServerHTTP } = await import('./networking/rpc')
+      const result = await authenticateServerHTTP(`${config2.hostname}:${config2.port}`)
+      expect(result).not.toBeArray()
+      if (!Array.isArray(result)) {
+        expect(result.address).toBe(peerManager2.account.address)
+        expect(result.hostname).toBe(`${config2.hostname}:${config2.port}`)
+      }
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('authenticateServerHTTP handles fetch failure', async () => {
+    const originalFetch = globalThis.fetch
+    try {
+      globalThis.fetch = (() => Promise.reject(new Error('Network error'))) as unknown as typeof fetch
+      
+      const { authenticateServerHTTP } = await import('./networking/rpc')
+      const result = await authenticateServerHTTP('192.168.1.999:9999')
+      expect(result).toBeArray()
+      const [code, message] = result as [number, string]
+      expect(code).toBe(500)
+      expect(message).toContain('Failed to authenticate server via HTTP')
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('authenticateServerHTTP handles invalid JSON', async () => {
+    const originalFetch = globalThis.fetch
+    try {
+      globalThis.fetch = (() => Promise.resolve(new Response('invalid json'))) as unknown as typeof fetch
+      
+      const { authenticateServerHTTP } = await import('./networking/rpc')
+      const result = await authenticateServerHTTP('192.168.1.999:9999')
+      expect(result).toBeArray()
+      const [code, message] = result as [number, string]
+      expect(code).toBe(500)
+      expect(message).toContain('Failed to authenticate server via HTTP')
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('authenticateServerHTTP handles hostname upgrade', async () => {
+    // Clear cache first
+    const { authenticateServerHTTP, authenticatedPeers } = await import('./networking/rpc')
+    authenticatedPeers.clear()
+    
+    // Create auth with upgraded hostname and proper signature
+    const upgradeAuth = {
+      address: peerManager2.account.address,
+      hostname: 'upgraded.example.com:4545',
+      signature: peerManager2.account.sign('I am upgraded.example.com:4545').toString(),
+      userAgent: 'Hydrabase/test',
+      username: config2.username
+    }
+    
+    let callCount = 0
+    const originalFetch = globalThis.fetch
+    try {
+      globalThis.fetch = (() => {
+        callCount++
+        if (callCount === 1) {
+          return Promise.resolve(new Response(JSON.stringify(upgradeAuth)))
+        }
+        // Second call to upgraded hostname - return same auth
+        return Promise.resolve(new Response(JSON.stringify(upgradeAuth)))
+      }) as unknown as typeof fetch
+      
+      const result = await authenticateServerHTTP(`${config2.hostname}:${config2.port}`)
+      expect(result).not.toBeArray()
+      if (!Array.isArray(result)) {
+        expect(result.hostname).toBe('upgraded.example.com:4545')
+      }
+      expect(callCount).toBe(2)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+})
+
+// describe('MockSocket — pairing sanity checks', () => {
+//   it('fires close handlers on both sides', async () => {
+//     const [aliceSocket, bobSocket] = MockSocket.pair(ALICE, BOB)
+//     aliceSocket.open()
+
+//     let aliceClosed = false
+//     let bobClosed = false
+//     aliceSocket.onClose(() => { aliceClosed = true })
+//     bobSocket.onClose(() => { bobClosed = true })
+
+//     aliceSocket.close()
+//     expect(aliceClosed).toBe(true)
+//     expect(bobClosed).toBe(true)
+//   })
+
+//   it('throws if you send on a closed socket', () => {
+//     const [aliceSocket] = MockSocket.pair(ALICE, BOB)
+//     // Never opened → isOpened = false
+//     expect(() => aliceSocket.send('nope')).toThrow()
+//   })
+// })
+
