@@ -1,6 +1,6 @@
 import type { SocketAddress } from "bun";
 
-import type { Socket, WebSocketData } from "../../../types/hydrabase";
+import type { Config, Socket, WebSocketData } from "../../../types/hydrabase";
 import type PeerManager from "../../PeerManager";
 
 import { log, warn } from "../../../utils/log";
@@ -69,10 +69,10 @@ export const websocketHandlers = (peerManager: PeerManager) => ({
   }
 })
 
-export const handleConnection = async (server: Bun.Server<WebSocketData>, req: Request, ip: null | SocketAddress, selfHostname: `${string}:${number}`): Promise<undefined | { address?: `0x${string}`, hostname?: `${string}:${number}`, res: [number, string] }> => {
+export const handleConnection = async (server: Bun.Server<WebSocketData>, req: Request, ip: null | SocketAddress, node: Config['node'], apiKey: string): Promise<undefined | { address?: `0x${string}`, hostname?: `${string}:${number}`, res: [number, string] }> => {
   log(`[SERVER] Connecting to client ${ip?.address}`)
   const headers = Object.fromEntries(req.headers.entries())
-  const peer = await verifyClient('x-api-key' in headers ? { apiKey: headers['x-api-key'] } : 'sec-websocket-protocol' in headers ? { apiKey: headers['sec-websocket-protocol'].replace('x-api-key-', '') } : { address: headers['x-address'] as `0x${string}`, hostname: headers['x-hostname'] as `${string}:${number}`, signature: headers['x-signature'] as string, userAgent: headers['x-userAgent'] as string, username: headers['x-username'] as string, }, selfHostname)
+  const peer = await verifyClient(node, 'x-api-key' in headers ? { apiKey: headers['x-api-key'] } : 'sec-websocket-protocol' in headers ? { apiKey: headers['sec-websocket-protocol'].replace('x-api-key-', '') } : { address: headers['x-address'] as `0x${string}`, hostname: headers['x-hostname'] as `${string}:${number}`, signature: headers['x-signature'] as string, userAgent: headers['x-userAgent'] as string, username: headers['x-username'] as string, }, apiKey)
   if (Array.isArray(peer)) {
     warn('DEVWARN:', `[SERVER] Failed to authenticate peer: ${peer[1]}`)
     return { res: peer }

@@ -3,7 +3,6 @@ import type { Repositories } from '../db';
 import type PeerManager from '../PeerManager';
 
 import { log, warn } from '../../utils/log';
-import { CONFIG } from '../config';
 import { SafeMetadataPlugin } from './SafeMetadataPlugin';
 
 const computeConfidence = (artistConfidences: number[], peerConfidences: number[], k = 1.0): null | number => {
@@ -48,7 +47,7 @@ export default class MetadataManager {
   public get installedPlugins(): SafeMetadataPlugin[] { return this.plugins }
   private readonly plugins: SafeMetadataPlugin[]
 
-  constructor(plugins: MetadataPlugin[], private readonly db: Repositories) {
+  constructor(plugins: MetadataPlugin[], private readonly db: Repositories, private readonly soulIdCutoff: number) {
     this.plugins = plugins.map(plugin => new SafeMetadataPlugin(plugin))
   }
 
@@ -65,13 +64,13 @@ export default class MetadataManager {
       const {id} = pluginAlbums.find(({address}) => address === '0x0') ?? {}
       if (id) {
         albumIds.set(p.id, id)
-        return (await p.albumTracks(id)).map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` }))
+        return (await p.albumTracks(id)).map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, this.soulIdCutoff))}` }))
       }
 
       const bestId = matchId(pluginAlbums, peers)
       if (bestId) {
         albumIds.set(p.id, bestId.id)
-        return (await p.albumTracks(bestId.id)).map(result => ({ ...result, confidence: (result.confidence+bestId.confidence)/2, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` }))
+        return (await p.albumTracks(bestId.id)).map(result => ({ ...result, confidence: (result.confidence+bestId.confidence)/2, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, this.soulIdCutoff))}` }))
       }
       return []
     }))
@@ -89,13 +88,13 @@ export default class MetadataManager {
       const { id } = pluginArtists.find(({address}) => address === '0x0') ?? {}
       if (id) {
         artistIds.set(p.id, id)
-        return (await p.artistAlbums(id)).map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` }))
+        return (await p.artistAlbums(id)).map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, this.soulIdCutoff))}` }))
       }
 
       const bestId = matchId(pluginArtists, peers)
       if (bestId) {
         artistIds.set(p.id, bestId.id)
-        return (await p.artistAlbums(bestId.id)).map(result => ({ ...result, confidence: (result.confidence+bestId.confidence)/2, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` }))
+        return (await p.artistAlbums(bestId.id)).map(result => ({ ...result, confidence: (result.confidence+bestId.confidence)/2, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, this.soulIdCutoff))}` }))
       }
       return []
     })))
@@ -113,13 +112,13 @@ export default class MetadataManager {
       const { id } = pluginArtists.find(({address}) => address === '0x0') ?? {}
       if (id) {
         artistIds.set(p.id, id)
-        return (await p.artistTracks(id)).map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` }))
+        return (await p.artistTracks(id)).map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, this.soulIdCutoff))}` }))
       }
 
       const bestId = matchId(pluginArtists, peers)
       if (bestId) {
         artistIds.set(p.id, bestId.id)
-        return (await p.artistTracks(bestId.id)).map(result => ({ ...result, confidence: (result.confidence+bestId.confidence)/2, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` }))
+        return (await p.artistTracks(bestId.id)).map(result => ({ ...result, confidence: (result.confidence+bestId.confidence)/2, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, this.soulIdCutoff))}` }))
       }
       return []
     })))
@@ -146,7 +145,7 @@ export default class MetadataManager {
   async searchAlbums(query: string): Promise<Response<'albums'>> {
     const [cached, ...pluginResults] = await Promise.all([
       this.db.album.searchByName(query),
-      ...this.plugins.map(async p => (await p.searchAlbums(query)).map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` })))
+      ...this.plugins.map(async p => (await p.searchAlbums(query)).map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, this.soulIdCutoff))}` })))
     ])
     const results = pluginResults.flat().map(result => ({ ...result, address: '0x0' as const }))
     for (const result of results) this.db.album.upsertFromPlugin(result)
@@ -156,7 +155,7 @@ export default class MetadataManager {
   async searchArtists(query: string): Promise<Response<'artists'>> {
     const [cached, ...pluginResults] = await Promise.all([
       this.db.artist.searchByName(query),
-      ...this.plugins.map(async p => (await p.searchArtists(query)).map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` })))
+      ...this.plugins.map(async p => (await p.searchArtists(query)).map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, this.soulIdCutoff))}` })))
     ])
     const results = pluginResults.flat().map(result => ({ ...result, address: '0x0' as const }))
     for (const result of results) this.db.artist.upsertFromPlugin(result)
@@ -166,7 +165,7 @@ export default class MetadataManager {
   async searchTracks(query: string): Promise<Response<'tracks'>> {
     const [cached, ...pluginResults] = await Promise.all([
       this.db.track.searchByName(query),
-      ...this.plugins.map(async p => (await p.searchTracks(query)).map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, CONFIG.soulIdCutoff))}` })))
+      ...this.plugins.map(async p => (await p.searchTracks(query)).map(result => ({ ...result, soul_id: `soul_${Bun.hash(`${result.plugin_id}:${result.id}`.slice(0, this.soulIdCutoff))}` })))
     ])
     const results = pluginResults.flat().map(result => ({ ...result, address: '0x0' as const }))
     for (const result of results) this.db.track.upsertFromPlugin(result)

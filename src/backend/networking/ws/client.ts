@@ -1,4 +1,4 @@
-import type { Socket } from '../../../types/hydrabase'
+import type { Config, Socket } from '../../../types/hydrabase'
 import type { Account } from '../../Crypto/Account'
 import type PeerManager from '../../PeerManager'
 
@@ -19,7 +19,7 @@ export default class WebSocketClient implements Socket {
   private retryQueue: (() => void)[] = []
   private socket!: WebSocket
 
-  constructor(public readonly peer: Identity, private readonly peers: PeerManager) {
+  constructor(public readonly peer: Identity, private readonly peers: PeerManager, private readonly node: Config['node']) {
     this._connect(peers.account)
   }
 
@@ -48,7 +48,7 @@ export default class WebSocketClient implements Socket {
 
   private _connect(account: Account) {
     log(`[CLIENT] Connecting to ${this.peer.username} ${this.peer.address} ws://${this.peer.hostname}`)
-    this.socket = new WebSocket(`ws://${this.peer.hostname}`, { headers: proveClient(account, this.peer.hostname, this.peers.hostname, true) })
+    this.socket = new WebSocket(`ws://${this.peer.hostname}`, { headers: proveClient(account, this.node, this.peer.hostname, true) })
 
     this.socket.addEventListener('open', () => {
       log(`[CLIENT] Connected to ${this.peer.username} ${this.peer.address} ws://${this.peer.hostname}`)

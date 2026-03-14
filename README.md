@@ -15,8 +15,8 @@ services:
     image: ghcr.io/quixthe2nd/hydrabase
     container_name: hydrabase
     restart: always
-    network_mode: host # Can be replaced with ports if manually port forwarded
-    # ports:
+    network_mode: host # Can be replaced with ports if not using UPnP
+    # ports: # Ports must be manually forwarded if uncommented - Whitelist 4545 in your firewall
     #   - 4545:4545/tcp
     #   - 4545:4545/udp
     volumes:

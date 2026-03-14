@@ -1,15 +1,16 @@
-import type { ApiPeer, Connection, NodeStats } from '../types/hydrabase'
+import type { ApiPeer, Config, Connection, NodeStats } from '../types/hydrabase'
 import type { MetadataPlugin } from '../types/hydrabase-schemas'
+import type { Account } from './Crypto/Account'
 import type { Repositories } from './db'
 import type { DHT_Node } from './networking/dht'
 import type PeerManager from './PeerManager'
 
 import { error } from '../utils/log'
-import { CONFIG } from './config'
 
 export class StatsReporter {
   constructor(
-    private readonly address: `0x${string}`,
+    private readonly node: Config['node'],
+    private readonly account: Account,
     private readonly plugins: MetadataPlugin[],
     private readonly peers: PeerManager,
     private readonly dht: DHT_Node,
@@ -29,8 +30,8 @@ export class StatsReporter {
         votes:   this.repos.stats.getPeerVotes(),
       },
       self: {
-        address:  this.address,
-        hostname: CONFIG.hostname,
+        address:  this.account.address,
+        hostname: this.node.hostname,
         plugins:  this.plugins.map(p => p.id),
         votes:    this.repos.stats.getSelfVotes(),
       },

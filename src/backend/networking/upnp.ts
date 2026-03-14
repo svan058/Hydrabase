@@ -1,11 +1,12 @@
 import natUpnp from 'nat-upnp'
 
-import { debug } from '../../utils/log';
-import { CONFIG } from '../config'
+import type { Config } from '../../types/hydrabase';
+
+import { debug, warn } from '../../utils/log';
 
 const upnp = natUpnp.createClient();
-const mapPort = (port: number, description: string, protocol: 'TCP' | 'UDP' = 'TCP') => new Promise((res, rej) => {
-  upnp.portMapping({ description, private: port, protocol, public: port, ttl: CONFIG.upnpTTL }, err => {
+const mapPort = (port: number, description: string, ttl: number, protocol: 'TCP' | 'UDP') => new Promise((res, rej) => {
+  upnp.portMapping({ description, private: port, protocol, public: port, ttl }, err => {
     if (err) rej(err)
     else {
       debug(`[UPnP] Successfully forwarded ${protocol} port ${port}`)
@@ -13,7 +14,20 @@ const mapPort = (port: number, description: string, protocol: 'TCP' | 'UDP' = 'T
     }
   })
 })
-export const portForward = async (port: number, description: string, protocol: 'TCP' | 'UDP' = 'TCP') => {
-  await mapPort(port, description, protocol)
-  setInterval(() => mapPort(port, description, protocol), CONFIG.upnpReannounce*1_000)
+const portForward = async (port: number, description: string, announceInterval: number, ttl: number, protocol: 'TCP' | 'UDP' = 'TCP') => {
+  await mapPort(port, description, ttl, protocol)
+  setInterval(() => mapPort(port, description, ttl, protocol), announceInterval)
+}
+
+export const requestPort = async (node: Config['node'], upnp: Config['upnp']) => {
+  try {
+    await portForward(node.port, 'Hydrabase (TCP)', upnp.reannounce, upnp.ttl, 'TCP');
+  } catch (err) {
+    warn('WARN:', `[UPnP] Failed: ${(err as Error).message} - Ignore if manually port forwarded`)
+  }
+  try {
+    await portForward(node.port, 'Hydrabase (UDP)', upnp.reannounce, upnp.ttl, 'UDP');
+  } catch (err) {
+    warn('WARN:', `[UPnP] Failed: ${(err as Error).message} - Ignore if manually port forwarded`)
+  }
 }

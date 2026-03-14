@@ -22,13 +22,13 @@ export interface Repositories {
   track: TrackRepository
 }
 
-export const startDatabase = (): Repositories => {
+export const startDatabase = (pluginConfidenceFormula: string): Repositories => {
   const db = drizzle(sqlite, { schema })
   migrate(db, { migrationsFolder: "./drizzle" });
   return {
     album: new AlbumRepository(db),
     artist: new ArtistRepository(db),
-    peer: new PeerRepository(db),
+    peer: new PeerRepository(db, pluginConfidenceFormula),
     stats: new StatsRepository(db),
     track: new TrackRepository(db),
   }
