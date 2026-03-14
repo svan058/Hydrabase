@@ -186,12 +186,12 @@ export default class PeerManager {
     return new Map<bigint, SearchResult[T]>(results.entries().map(([hash, result]) => ([hash, { ...result, confidence: avg(result.confidences) }])))
   }
 
-  private _attemptUDPFallback(hostname: `${string}:${number}`, failedIdentity: Identity) {
+  private async _attemptUDPFallback(hostname: `${string}:${number}`, failedIdentity: Identity) {
     debug(`[PEERS] WebSocket failed for ${failedIdentity.address} ${hostname}, attempting UDP fallback`)
     
     try {
       // Create UDP RPC connection as fallback
-      const udpSocket = RPC.fromOutbound(failedIdentity, this, this.dhtConfig, this.node)
+      const udpSocket = await RPC.fromOutbound(failedIdentity, this, this.dhtConfig, this.node)
       if (!udpSocket) {
         debug(`[PEERS] UDP fallback failed for ${hostname} - could not create RPC connection`)
         return false
