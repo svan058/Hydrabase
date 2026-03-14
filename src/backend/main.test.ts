@@ -582,7 +582,7 @@ describe('Transport-specific authentication', () => {
 
   it('authenticateServerHTTP handles hostname upgrade', async () => {
     // Clear cache first
-    const { authenticateServerHTTP, authenticatedPeers } = await import('./networking/rpc')
+    const { authenticatedPeers, authenticateServerHTTP } = await import('./networking/rpc')
     authenticatedPeers.clear()
     
     // Create auth with upgraded hostname and proper signature
