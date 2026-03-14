@@ -72,7 +72,7 @@ export default class WebSocketClient implements Socket {
 
     this.socket.addEventListener('close', ev => {
       clearTimeout(openTimeout)
-      const reason = ev.reason || 'Connection closed'
+      const reason = ev.reason ?? 'Connection closed'
       const codeMsg = ev.code === 1000 ? '' : ` (code: ${ev.code})`
       warn('WARN:', `[CLIENT] Connection closed with server ${this.peer.username} ${this.peer.address} ws://${this.peer.hostname} - ${reason}${codeMsg}`)
       this._isOpened = false
