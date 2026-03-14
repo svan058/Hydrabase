@@ -79,12 +79,14 @@ beforeAll(async () => {
   const node2 = new Node(metadataManager, () => peerManager2, formulas)
   peerManager2 = new PeerManager(account2, metadataManager, repos, async (type, query, searchPeers) => node2 ? await node2.search(type, query, searchPeers) : [], config2, dhtConfig, false)
   server2 = startServer(account2, peerManager2, config2, '')
+  peerManager2.rpc.bind(config2.port)
 
   // Start Node 3
   const account3 = new Account(generatePrivateKey())
   const node3 = new Node(metadataManager, () => peerManager3, formulas)
   peerManager3 = new PeerManager(account3, metadataManager, repos, async (type, query, searchPeers) => node3 ? await node3.search(type, query, searchPeers) : [], config3, dhtConfig, false)
   server3 = startServer(account3, peerManager3, config3, '')
+  peerManager3.rpc.bind(config3.port)
 
   await new Promise(res => { setTimeout(res, 5_000) })
 
@@ -150,8 +152,8 @@ describe('HIP1', () => {
     expect(await peerManager1.add(`${config2.hostname}:${config2.port}`, 'TCP')).toBe(false)
   })
 
-  it('peer 2 connected to peer 3 over TCP', async () => { // TODO: switch to UDP
-    expect(await peerManager2.add(`${config3.hostname}:${config3.port}`, 'TCP')).toBe(true)
+  it('peer 2 connected to peer 3 over UDP', async () => {
+    expect(await peerManager2.add(`${config3.hostname}:${config3.port}`, 'UDP')).toBe(true)
   })
 
   it('peers 1 and 2 have connected to each other', async () => {

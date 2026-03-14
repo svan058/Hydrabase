@@ -71,13 +71,9 @@ export class DHT_Node {
       peers.add(hostname)
     })
   }
-
   static readonly getNodeId = (node: Config['node']) => SHA1.hash(`${node.hostname}:${node.port}`, 'hex')
-
   static readonly getRoomId = (roomSeed: string) => Bun.SHA1.hash(roomSeed + String(Math.round(Date.now()/1000/60/60/6)), 'hex')
-
   public readonly add = (node: DHTNode) => this.dht.addNode(node)
-
   public readonly isReady = () => new Promise<undefined>(res => {
     const id = setInterval(() => {
       const { notResolved, resolved } = this.countResolved()
@@ -95,19 +91,16 @@ export class DHT_Node {
       } // TODO: rate limiting
     }, 1_000)
   })
-
   private readonly announce = () => {
     const room = DHT_Node.getRoomId(this.config.roomSeed)
     this.dht.announce(room, this.node.port, err => { if (err) warn('WARN:', `[DHT] An error occurred during announce - ${err.message} ${this.nodes.length}`) })
     this.dht.lookup(room, err => { if (err) error('ERROR:', `[DHT] An error occurred during lookup ${err.message}`) })
   }
-
   private readonly countResolved = () => {
     const resolved = Object.values(this.resolved).filter(resolved => resolved).length
     const notResolved = Object.values(this.resolved).filter(resolved => !resolved).length
     return { notResolved, resolved }
   }
-
   private readonly loadCache = async () => {
     this.resolved.cacheLoaded = true
     if (!(await this.cacheFile.exists())) return
