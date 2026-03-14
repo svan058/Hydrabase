@@ -78,7 +78,7 @@ export class DHT_Node {
 
   public readonly add = (node: DHTNode) => this.dht.addNode(node)
 
-  public readonly isReady = () => new Promise(res => {
+  public readonly isReady = () => new Promise<undefined>(res => {
     const id = setInterval(() => {
       const { notResolved, resolved } = this.countResolved()
       if (!this.config.requireConnection) this.resolved.connected = true
@@ -89,9 +89,7 @@ export class DHT_Node {
         setInterval(() => this.announce(), this.config.reannounce)
         res(undefined)
       } else if (this.lastResolved !== resolved) {
-        const pending = Object.entries(this.resolved)
-          .filter(([, v]) => !v)
-          .map(([k]) => k)
+        const pending = Object.entries(this.resolved).filter(([, v]) => !v).map(([k]) => k)
         log(`[DHT] Starting... ${resolved}/${resolved+notResolved} (waiting on: ${pending.join(', ')})`)
         this.lastResolved = resolved
       } // TODO: rate limiting

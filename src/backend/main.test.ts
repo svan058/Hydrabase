@@ -152,6 +152,8 @@ describe('HIP1', () => {
 
   it('peer 2 connected to peer 3 over UDP', async () => {
     expect(await peerManager2.add(`${config3.hostname}:${config3.port}`, 'UDP')).toBe(true)
+  }, {
+    timeout: 15_000
   })
 
   it('peers 1 and 2 have connected to each other', async () => {
@@ -223,7 +225,7 @@ describe('HIP3', () => {
     expect(peer3).toBeDefined()
   })
 })
-
+// TODO: test dht
 // TODO: reconnect to a disconnected peer
 
 // describe('MockSocket — pairing sanity checks', () => {

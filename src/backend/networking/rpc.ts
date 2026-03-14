@@ -120,7 +120,6 @@ const handlers = {
 
 export const startRPC = (peers: PeerManager, node: Config['node'], config: Config['dht'], apiKey: false | string) => {
   const rpc = krpc({ id: Buffer.from(DHT_Node.getNodeId(node)), nodes: config.bootstrapNodes.split(','), timeout: 5_000 })
-  rpc.bind(node.port)
   rpc.on('query', async (query, peer) => {
     const q = query.q.toString()
     if (!q.startsWith(config.rpcPrefix)) return
