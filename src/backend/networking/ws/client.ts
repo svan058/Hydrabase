@@ -101,10 +101,10 @@ export default class WebSocketClient implements Socket {
   
   private async _fetchRejectionReason() {
     try {
-      // Try to get the actual rejection reason by making a direct connection attempt
+
       const httpUrl = `http://${this.peer.hostname}`
       
-      // First, try to get rejection details via HTTP
+
       const response = await fetch(httpUrl, { 
         headers: { 
           'Connection': 'upgrade',
@@ -119,7 +119,7 @@ export default class WebSocketClient implements Socket {
         warn('WARN:', `[CLIENT] Server ${this.peer.hostname} rejected connection: HTTP ${response.status} ${response.statusText}${body ? ` - ${body}` : ''}`)
       }
     } catch {
-      // Silent failure - this is just for additional debugging info
+
     }
   }
   

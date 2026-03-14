@@ -1,0 +1,33 @@
+services:
+  hydrabase-node1:
+    build: .
+    container_name: test-node1
+    ports:
+      - "4545:4545"
+    environment:
+      USERNAME: "TestNode1"
+      API_KEY: "e20bb78a8612da2a818a5468ceae5326"
+    networks:
+      - hydrabase-test
+    extra_hosts:
+      - "ddns.yazdani.au:172.18.0.3"  # Point to node2
+
+  hydrabase-node2:
+    build: .
+    container_name: test-node2
+    ports:
+      - "4546:4545"
+    environment:
+      USERNAME: "TestNode2"
+      API_KEY: "5b956699b7520a9cfa2094d61ea7ed96"
+    networks:
+      - hydrabase-test
+    extra_hosts:
+      - "ddns.yazdani.au:172.18.0.2"  # Point to node1
+
+networks:
+  hydrabase-test:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/24
