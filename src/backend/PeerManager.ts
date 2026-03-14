@@ -183,8 +183,6 @@ export default class PeerManager {
     return new Map<bigint, SearchResult[T]>(results.entries().map(([hash, result]) => ([hash, { ...result, confidence: avg(result.confidences) }])))
   }
 
-
-
   private announce({ hostname }: Peer) {
     for (const peerAddress of this.peerAddresses) {
       const announceTo = this.peers.get(peerAddress)
