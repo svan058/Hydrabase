@@ -69,7 +69,10 @@ export const verifyClient = async (node: Config['node'], auth: Auth | { apiKey: 
     authenticate(auth.hostname).then(identity => {
       if (Array.isArray(identity)) {
         const [, errorMessage] = identity
-        if (errorMessage.includes('Unable to connect') || errorMessage.includes('Failed to fetch') || errorMessage.includes('Failed to authenticate server') || errorMessage.includes('Failed to parse')) {
+        if (errorMessage.includes('Unable to connect') || 
+            errorMessage.includes('Failed to fetch') || 
+            errorMessage.includes('Failed to authenticate server') ||
+            errorMessage.includes('Failed to parse')) {
           debug(`[HIP3] Reverse auth failed for ${auth.hostname}`)
           log(`[HIP3] Accepting NAT client ${auth.username} ${auth.address} ${auth.hostname}`)
           return resolve(true)
