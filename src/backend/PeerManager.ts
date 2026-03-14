@@ -144,8 +144,7 @@ export default class PeerManager {
       connectionEstablished = true
       this.peers.set(socket.peer.address, peer)
       cacheFile.write(JSON.stringify([...this.peers.values()].map(peer => peer.hostname)))
-      const connectionType = socket instanceof RPC ? 'RPC' : 'SERVER WebSocket'
-      log(`[PEERS] Peer connection established with ${socket.peer.username} ${socket.peer.address} via ${connectionType}`)
+      log(`[PEERS] Peer connection established with ${socket.peer.username} ${socket.peer.address} via ${socket instanceof RPC ? 'RPC' : 'SERVER WebSocket'}`)
       this.announce(peer)
     }
     
