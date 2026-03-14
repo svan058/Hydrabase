@@ -118,18 +118,13 @@ export default class PeerManager {
 
     // TODO: feedback endpoints, so soulsync can force set metadata votes to 0 or 1 confidence
     const peer = new Peer(socket, this, this.repos, this.metadataManager.installedPlugins, this.search)
-    
-
     let connectionEstablished = false
-    
     socket.onClose(() => {
       this.peers.delete(socket.peer.address)
       if (!connectionEstablished && socket instanceof WebSocketClient) {
-
         this._attemptUDPFallback(_peer as `${string}:${number}`, socket.peer)
       }
     })
-    
 
     if (socket instanceof WebSocketClient) {
       socket.onOpen(() => {
@@ -140,7 +135,6 @@ export default class PeerManager {
         this.announce(peer)
       })
     } else {
-
       connectionEstablished = true
       this.peers.set(socket.peer.address, peer)
       cacheFile.write(JSON.stringify([...this.peers.values()].map(peer => peer.hostname)))
