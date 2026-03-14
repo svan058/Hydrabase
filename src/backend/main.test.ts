@@ -528,7 +528,7 @@ describe('Peer search integration', () => {
 // TODO: test dht
 // TODO: reconnect to a disconnected peer
 
-// NAT-friendly authentication tests
+
 const mockNode: Config['node'] = {
   hostname: 'server.example.com',
   ip: '203.0.113.10',
@@ -692,10 +692,10 @@ describe('NAT-friendly authentication', () => {
 
 
 
-// UDP Authentication tests (simplified)
+
 describe('UDP Authentication Edge Cases', () => {
   it('handles authentication cache correctly', () => {
-    // Clear cache first
+
     authenticatedPeers.clear()
     
     const testIdentity = {
@@ -705,7 +705,7 @@ describe('UDP Authentication Edge Cases', () => {
       username: 'TestNode'
     }
     
-    // Test cache set/get
+
     authenticatedPeers.set('127.0.0.1:4545', testIdentity)
     const cached = authenticatedPeers.get('127.0.0.1:4545')
     
@@ -716,7 +716,10 @@ describe('UDP Authentication Edge Cases', () => {
     const account = new Account(generatePrivateKey())
     const nodeConfig = {
       hostname: 'test.example.com',
+      ip: '203.0.113.10',
+      listenAddress: '0.0.0.0',
       port: 4545,
+      preferTransport: 'TCP' as const,
       username: 'TestNode'
     }
     
@@ -734,13 +737,16 @@ describe('UDP Authentication Edge Cases', () => {
     const account = new Account(generatePrivateKey())
     const nodeConfig = {
       hostname: 'test.example.com',
+      ip: '203.0.113.10',
+      listenAddress: '0.0.0.0',
       port: 4545,
+      preferTransport: 'TCP' as const,
       username: 'TestNode'
     }
     
     const serverProof = proveServer(account, nodeConfig)
     
-    // Try to verify with wrong hostname
+
     const isValid = verifyServer(serverProof, 'wrong.example.com:4545')
     expect(Array.isArray(isValid)).toBe(true)
     if (Array.isArray(isValid)) {

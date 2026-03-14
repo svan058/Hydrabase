@@ -75,8 +75,8 @@ export const verifyClient = async (node: Config['node'], auth: Auth | { apiKey: 
                                   errorMessage.includes('Failed to parse')
         
         if (isConnectionError) {
-          debug(`[HIP3] Reverse auth failed due to connectivity (NAT/firewall) for ${auth.hostname} - accepting based on signature verification`)
-          log(`[HIP3] Accepting NAT client ${auth.username} ${auth.address} ${auth.hostname} - reverse verification failed but signature is valid`)
+          debug(`[HIP3] Reverse auth failed for ${auth.hostname}`)
+          log(`[HIP3] Accepting NAT client ${auth.username} ${auth.address} ${auth.hostname}`)
           return resolve(true)
         }
         
