@@ -87,7 +87,7 @@ export default class PeerManager {
 
   // TODO: some mechanism to proactively propagate unsolicited votes
   public async add(_peer: `${string}:${number}` | RPC | WebSocketServerConnection, preferTransport = this.node.preferTransport, isFallback = false): Promise<boolean> {
-    const socket = typeof _peer === 'string' ? await this.toSocket(_peer, preferTransport) : _peer
+    const socket = typeof _peer === 'string' ? await this.toSocket(_peer) : _peer
     if (!socket && !isFallback && typeof _peer === 'string' && preferTransport === 'UDP') {
       return this.add(_peer, 'TCP', true)
     }
@@ -184,9 +184,8 @@ export default class PeerManager {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private async toSocket(hostname: `${string}:${number}`, preferTransport: 'TCP' | 'UDP'): Promise<false | Socket> {
-    const auth = preferTransport === 'TCP' ? await authenticateServerHTTP(hostname) : authenticateServerUDP(hostname, this.udpServer.socket, this.account, this.node)
+  private async toSocket(hostname: `${string}:${number}`): Promise<false | Socket> {
+    const auth = await authenticateServerHTTP(hostname)
     if (Array.isArray(auth)) return warn('DEVWARN:', `[PEERS] Failed to authenticate peer ${auth[1]}`)
     const identity = this.verifyPeer(authenticatedPeers.get(hostname)?.hostname ?? hostname, auth)
     if (!identity) return identity
