@@ -10,7 +10,7 @@ import type { Identity } from './protocol/HIP1/handshake';
 import { debug, log, warn } from '../utils/log';
 import { authenticateServerHTTP } from './networking/http';
 import { RPC } from './networking/rpc';
-import { authenticatedPeers, fromOutbound, UDP_Server } from './networking/udp';
+import { authenticatedPeers, authenticateServerUDP, fromOutbound, UDP_Server } from './networking/udp';
 import WebSocketClient from "./networking/ws/client";
 import { WebSocketServerConnection } from './networking/ws/server';
 import { Peer } from "./peer";
@@ -87,7 +87,7 @@ export default class PeerManager {
 
   // TODO: some mechanism to proactively propagate unsolicited votes
   public async add(_peer: `${string}:${number}` | RPC | WebSocketServerConnection, preferTransport = this.node.preferTransport, isFallback = false): Promise<boolean> {
-    const socket = typeof _peer === 'string' ? await this.toSocket(_peer) : _peer
+    const socket = typeof _peer === 'string' ? await this.toSocket(_peer, preferTransport) : _peer
     if (!socket && !isFallback && typeof _peer === 'string' && preferTransport === 'UDP') {
       return this.add(_peer, 'TCP', true)
     }
@@ -184,8 +184,8 @@ export default class PeerManager {
     }
   }
 
-  private async toSocket(hostname: `${string}:${number}`): Promise<false | Socket> {
-    const auth = await authenticateServerHTTP(hostname)
+  private async toSocket(hostname: `${string}:${number}`, preferTransport: 'TCP' | 'UDP' = this.node.preferTransport): Promise<false | Socket> {
+    const auth = preferTransport === 'TCP' ? await authenticateServerHTTP(hostname) : await authenticateServerUDP(this.udpServer.socket, hostname, this.account, this.node)
     if (Array.isArray(auth)) return warn('DEVWARN:', `[PEERS] Failed to authenticate peer ${auth[1]}`)
     const identity = this.verifyPeer(authenticatedPeers.get(hostname)?.hostname ?? hostname, auth)
     if (!identity) return identity
