@@ -1,3 +1,4 @@
+import dgram from 'dgram'
 import { Parser } from 'expr-eval'
 
 import type { Config, Socket } from '../types/hydrabase';
@@ -33,14 +34,14 @@ const checkPluginMatches = (peerResults: Response<Request['type']>, confirmedHas
     pluginMatches[result.plugin_id] = entry
   }
   return pluginMatches
-}
+} // TODO: pipe all console.log's to gui
 
 const calculatePeerConfidence = (formulas: Config['formulas'], pluginMatches: Record<string, { match: number, mismatch: number }>, installedPlugins: Set<string>) => avg(
   Object.entries(pluginMatches)
     .filter(([pluginId]) => installedPlugins.has(pluginId))
     .map(([, { match, mismatch }]) => Parser.evaluate(formulas.pluginConfidence, { x: match, y: mismatch }))
-)
-
+) // 0-1
+// TODO: dedupe usernames
 const saveResults = <T extends Request['type']>(formulas: Config['formulas'], peerResults: Response<T>, peerConfidence: number, results: Map<bigint, SearchResult[T] & { confidences: number[] }>, peer: Peer): Map<bigint, SearchResult[T] & { confidences: number[] }> => {
   for (const _result of peerResults) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -60,7 +61,7 @@ const searchPeer = async <T extends Request['type']>(formulas: Config['formulas'
 }
 
 const isPeer = (peer: Peer | undefined, address: `0x${string}`): peer is Peer => peer ? true : warn('DEVWARN:', `[PEERS] Peer not found ${address}`)
-const isOpened = (peer: Peer | undefined, address: `0x${string}`): boolean => peer ? true : warn('DEVWARN:', `[PEERS] Skipping peer ${address}: connection not open`)
+const isOpened = (peer: Peer | undefined, address: `0x${string}`): boolean => peer ? true : warn('WARN:', `[PEERS] Skipping peer ${address}: connection not open`)
 
 export default class PeerManager {
   get apiPeer() {
@@ -72,7 +73,7 @@ export default class PeerManager {
   get peerAddresses() {
     return this.peers.addresses
   }
-  private readonly knownPeers = new Set<`${string}:${number}`>()
+  private readonly knownPeers = new Set<`${string}:${number}`>() // TODO: prune old peers, mem leak
   private readonly peers = new PeerMap()
 
   constructor(
@@ -82,9 +83,11 @@ export default class PeerManager {
     private readonly search: <T extends Request['type']>(type: T, query: string, searchPeers?: boolean) => Promise<Response<T>>,
     private readonly node: Config['node'],
     private readonly rpcConfig: Config['rpc'],
-    private readonly udpServer: UDP_Server
+    private readonly udpServer: UDP_Server,
+    public readonly socket: dgram.Socket
   ) {}
 
+  // TODO: some mechanism to proactively propagate unsolicited votes
   public async add(_peer: `${string}:${number}` | RPC | WebSocketServerConnection, preferTransport = this.node.preferTransport, isFallback = false): Promise<boolean> {
     const socket = typeof _peer === 'string' ? await this.toSocket(_peer, preferTransport) : _peer
     if (!socket && !isFallback && typeof _peer === 'string' && preferTransport === 'UDP') {
@@ -100,6 +103,7 @@ export default class PeerManager {
       return false
     }
 
+    // TODO: feedback endpoints, so soulsync can force set metadata votes to 0 or 1 confidence
     const peer = new Peer(socket, this, this.repos, this.metadataManager.installedPlugins, this.search)
     let connectionEstablished = false
     
@@ -134,12 +138,13 @@ export default class PeerManager {
     return true
   }
 
-  public getConfidence(address: `0x${string}`): number {
+  public getConfidence(address: `0x${string}`): number { // TODO: Soulsync plugin - https://github.com/Nezreka/SoulSync/blob/main/Support/API.md
     const peer = this.peers.get(address)
     if (!peer) return 0
-    return peer.historicConfidence
+    return peer.historicConfidence // TODO: tit for tat
   }
 
+  // TODO: endpoint soulsync can call with user feedback of "spotify result x is listenbrainz result y"
   public readonly has = (address: `0x${string}`) => this.peers.has(address)
 
   public isConnectionOpened(address: `0x${string}`): boolean {
@@ -155,7 +160,7 @@ export default class PeerManager {
     if (!(await cacheFile.exists())) return
     const hostnames: `${string}:${number}`[] = await cacheFile.json()
     for (const hostname of hostnames) if (hostname && !bootstrapPeers.includes(hostname)) this.add(hostname)
-  }
+  } // TODO: time based confidence scores - older peers = more trustworthy
 
   public async requestAll<T extends Request['type']>(formulas: Config['formulas'], request: Request & { type: T }, confirmedHashes: Set<bigint>, installedPlugins: Set<string>): Promise<Map<bigint, SearchResult[T]>> {
     const results = new Map<bigint, SearchResult[T] & { confidences: number[] }>()
@@ -182,12 +187,12 @@ export default class PeerManager {
   }
 
   private async toSocket(hostname: `${string}:${number}`, preferTransport: 'TCP' | 'UDP'): Promise<false | Socket> {
-    const auth = preferTransport === 'TCP' ? await authenticateServerHTTP(hostname) : await authenticateServerUDP(hostname, this.udpServer.socket, this.account, this.node)
+    const auth = preferTransport === 'TCP' ? await authenticateServerHTTP(hostname) : await authenticateServerUDP(hostname, this.socket, this.account, this.node)
     if (Array.isArray(auth)) return warn('DEVWARN:', `[PEERS] Failed to authenticate peer ${auth[1]}`)
     const identity = this.verifyPeer(authenticatedPeers.get(hostname)?.hostname ?? hostname, auth)
     if (!identity) return identity
-    if (preferTransport === 'TCP') return new WebSocketClient(identity, this, this.node)
-    return fromOutbound(this.udpServer.socket, this, identity, this.rpcConfig) || false
+    // if (preferTransport === 'TCP') return new WebSocketClient(identity, this, this.node)
+    return fromOutbound(this.udpServer.socket, this, identity, this.rpcConfig, this.node) || false
   }
 
   private verifyPeer(hostname: `${string}:${number}`, auth: Auth | Identity) {
