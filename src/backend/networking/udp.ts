@@ -3,11 +3,12 @@ import dgram from 'dgram'
 import z from 'zod'
 
 import type { Config } from '../../types/hydrabase'
+import type { Account } from '../Crypto/Account'
 import type PeerManager from '../PeerManager'
 
 import { error, log, warn } from '../../utils/log'
 import { FSMap } from '../FSMap'
-import { AuthSchema, type Identity, proveClient, proveServer, verifyClient } from '../protocol/HIP1/handshake'
+import { AuthSchema, type Identity, proveClient, proveServer, verifyClient, verifyServer } from '../protocol/HIP1/handshake'
 import { RPC } from './rpc'
 
 export const authenticatedPeers = new FSMap<`${string}:${number}`, Identity>('./data/authenticated-peers.json')
@@ -63,6 +64,31 @@ const rpcMessageSchema = z.preprocess((msg: Record<string, unknown> & { y: Uint8
   HandshakeResponseSchema,
 ]))
 type Message = z.infer<typeof rpcMessageSchema>
+
+export const authenticateServerUDP = (socket: dgram.Socket, hostname: `${string}:${number}`, account: Account, node: Config['node']): Promise<[number, string] | Identity> => {
+  const cache = authenticatedPeers.get(hostname)
+  if (cache) return Promise.resolve(cache)
+  const [host, port] = hostname.split(':') as [string, `${number}`]
+  return new Promise(resolve => {
+    const ac = new AbortController()
+    socket.on('message', function handler(msg: Buffer) {
+      const result = rpcMessageSchema.safeParse(bencode.decode(msg))
+      if (!result.success) return
+      if (result.data.y === 'e') { ac.abort(); socket.removeListener('message', handler); resolve([result.data.e[0], result.data.e[1]]); return }
+      if (result.data.y !== 'h2') return
+      const auth = result.data.h2
+      const verification = verifyServer(auth, hostname)
+      if (verification !== true) { ac.abort(); socket.removeListener('message', handler); resolve(verification); return }
+      authenticatedPeers.set(hostname, auth)
+      log(`[UDP] Authenticated server ${hostname}`)
+      ac.abort()
+      socket.removeListener('message', handler)
+      resolve(auth)
+    })
+    setTimeout(() => { if (!ac.signal.aborted) resolve([408, 'UDP auth timeout']) }, 10_000)
+    socket.send(bencode.encode({ h1: proveClient(account, node, hostname), t: '0', y: 'h1' } satisfies HandshakeRequest), Number(port), host)
+  })
+}
 
 export const fromOutbound = (socket: dgram.Socket, peerManager: PeerManager, identity: Identity, config: Config['rpc'], node: Config['node']): RPC => {
   const [host, port] = identity.hostname.split(':') as [string, `${number}`]
