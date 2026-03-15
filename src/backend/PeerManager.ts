@@ -9,12 +9,12 @@ import type { Repositories } from './db'
 import type MetadataManager from './Metadata'
 
 import { debug, log, warn } from '../utils/log';
+import { authenticateServerHTTP } from './networking/http';
 import { authenticatedPeers, RPC, startRPC } from './networking/rpc';
 import WebSocketClient from "./networking/ws/client";
 import { WebSocketServerConnection } from './networking/ws/server';
 import { Peer } from "./peer";
 import { PeerMap } from './PeerMap';
-import { authenticateServerHTTP } from './networking/http';
 
 const cacheFile = Bun.file('./data/ws-servers.json')
 const avg = (numbers: number[]) => numbers.reduce((accumulator, currentValue) => accumulator + currentValue, 0) / numbers.length
@@ -84,9 +84,6 @@ export default class PeerManager {
   // TODO: some mechanism to proactively propagate unsolicited votes
   public async add(_peer: `${string}:${number}` | RPC | WebSocketServerConnection, preferTransport = this.node.preferTransport, isFallback = false): Promise<boolean> {
     const socket = await this.toSocket(_peer, preferTransport, isFallback)
-    
-    // Synchronous fallback: only for UDP preferred (RPC.fromOutbound can fail synchronously)
-    // TCP fallback is handled async via onClose handler
     if (!socket && !isFallback && typeof _peer === 'string' && preferTransport === 'UDP') {
       return this.add(_peer, 'TCP', true)
     }
