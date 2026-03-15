@@ -11,7 +11,7 @@ import type { Auth, Identity } from './protocol/HIP1/handshake';
 import { debug, log, warn } from '../utils/log';
 import { authenticateServerHTTP } from './networking/http';
 import { RPC } from './networking/rpc';
-import { authenticatedPeers, authenticateServerUDP, fromOutbound, UDP_Server } from './networking/udp';
+import { authenticatedPeers, fromOutbound, UDP_Server } from './networking/udp';
 import WebSocketClient from "./networking/ws/client";
 import { WebSocketServerConnection } from './networking/ws/server';
 import { Peer } from "./peer";
@@ -186,8 +186,9 @@ export default class PeerManager {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private async toSocket(hostname: `${string}:${number}`, preferTransport: 'TCP' | 'UDP'): Promise<false | Socket> {
-    const auth = preferTransport === 'TCP' ? await authenticateServerHTTP(hostname) : await authenticateServerUDP(hostname, this.socket, this.account, this.node)
+    const auth = await authenticateServerHTTP(hostname)
     if (Array.isArray(auth)) return warn('DEVWARN:', `[PEERS] Failed to authenticate peer ${auth[1]}`)
     const identity = this.verifyPeer(authenticatedPeers.get(hostname)?.hostname ?? hostname, auth)
     if (!identity) return identity
