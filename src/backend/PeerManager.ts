@@ -15,6 +15,7 @@ import { DHT_Node } from './networking/dht';
 import { authenticateServerHTTP } from './networking/http';
 import { RPC } from './networking/rpc';
 import { authenticatedPeers, type UDP_Server } from './networking/udp';
+import { type Identity, proveClient, verifyServer } from './protocol/HIP1/handshake';
 import WebSocketClient from "./networking/ws/client";
 import { WebSocketServerConnection } from './networking/ws/server';
 import { Peer } from "./peer";
@@ -205,9 +206,63 @@ export default class PeerManager {
   }
 
 
+  private async authViaUDP(hostname: `${string}:${number}`): Promise<false | Identity> {
+    const [host, port] = hostname.split(':') as [string, `${number}`]
+    log(`[PEERS] Attempting UDP auth to ${hostname}`)
+    const response = await new Promise<{ r?: Record<string, Buffer> } | undefined>(resolve => {
+      this.rpc.query({ host, port: Number(port) }, { a: proveClient(this.account, this.node, hostname), q: `${this.rpcConfig.prefix}auth` }, (err: globalThis.Error | null, res: { r?: Record<string, Buffer> } | undefined) => {
+        if (err) {
+          warn('DEVWARN:', `[PEERS] UDP auth query failed for ${hostname}: ${err.message}`)
+          resolve(undefined)
+          return
+        }
+        resolve(res)
+      })
+    })
+    if (!response?.r) {
+      warn('DEVWARN:', `[PEERS] No UDP auth response from ${hostname}`)
+      return false
+    }
+    // Decode server identity from bencode response
+    const r = response.r
+    try {
+      const serverAuth = {
+        address: r['address']?.toString(),
+        hostname: r['hostname']?.toString(),
+        signature: r['signature']?.toString(),
+        userAgent: r['userAgent']?.toString(),
+        username: r['username']?.toString(),
+      }
+      // Verify server proof against the hostname we connected to
+      const verified = verifyServer(serverAuth as Parameters<typeof verifyServer>[0], hostname)
+      if (verified !== true) {
+        warn('DEVWARN:', `[PEERS] UDP auth server verification failed for ${hostname}: ${verified[1]}`)
+        return false
+      }
+      const identity: Identity = {
+        address: serverAuth.address as `0x${string}`,
+        hostname,
+        userAgent: serverAuth.userAgent ?? '',
+        username: serverAuth.username ?? '',
+      }
+      authenticatedPeers.set(hostname, identity)
+      log(`[PEERS] UDP auth succeeded for ${identity.username} ${identity.address} at ${hostname}`)
+      return identity
+    } catch (err) {
+      warn('DEVWARN:', `[PEERS] Failed to parse UDP auth response from ${hostname}: ${err}`)
+      return false
+    }
+  }
+
   private async toSocket(peer: `${string}:${number}` | RPC | WebSocketServerConnection, preferTransport: 'TCP' | 'UDP', skipKnownCheck = false): Promise<false | Socket> {
     if (peer instanceof WebSocketServerConnection || peer instanceof RPC) return peer
     const identity = await this.getAuth(authenticatedPeers.get(peer)?.hostname ?? peer, skipKnownCheck)
+    if (!identity && preferTransport === 'UDP') {
+      // HTTP auth failed — try UDP-first auth handshake
+      const udpIdentity = await this.authViaUDP(peer as `${string}:${number}`)
+      if (!udpIdentity) return false
+      return RPC.fromInbound(this, udpIdentity, this.rpcConfig)
+    }
     if (!identity) return identity
     if (preferTransport === 'TCP') return new WebSocketClient(identity, this, this.node)
     return (await RPC.fromOutbound(identity, this, this.rpcConfig, this.node)) || false
