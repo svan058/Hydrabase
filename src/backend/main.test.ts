@@ -75,6 +75,7 @@ beforeAll(async () => {
   const udpServer1 = await UDP_Server.init(() => peerManager1, rpcConfig, config1, undefined)
   peerManager1 = new PeerManager(account1, metadataManager, repos, async (type, query, searchPeers) => node1 ? await node1.search(type, query, searchPeers) : [], config1, rpcConfig, udpServer1)
   server1 = startServer(account1, peerManager1, config1, '')
+  udpServer1.socket.bind(config1.port)
 
   // Start Node 2
   const account2 = new Account(generatePrivateKey())
@@ -82,6 +83,7 @@ beforeAll(async () => {
   const udpServer2 = await UDP_Server.init(() => peerManager2, rpcConfig, config2, undefined)
   peerManager2 = new PeerManager(account2, metadataManager, repos, async (type, query, searchPeers) => node2 ? await node2.search(type, query, searchPeers) : [], config2, rpcConfig, udpServer2)
   server2 = startServer(account2, peerManager2, config2, '')
+  udpServer2.socket.bind(config1.port)
 
   // Start Node 3
   const account3 = new Account(generatePrivateKey())
@@ -89,6 +91,7 @@ beforeAll(async () => {
   const udpServer3 = await UDP_Server.init(() => peerManager3, rpcConfig, config3, undefined)
   peerManager3 = new PeerManager(account3, metadataManager, repos, async (type, query, searchPeers) => node3 ? await node3.search(type, query, searchPeers) : [], config3, rpcConfig, udpServer3)
   server3 = startServer(account3, peerManager3, config3, '')
+  udpServer3.socket.bind(config1.port)
 
   await new Promise(res => { setTimeout(res, 5_000) })
 }, {
