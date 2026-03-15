@@ -1,4 +1,4 @@
-import type { KRPC } from 'k-rpc';
+import type { KRPC, KRPCResponse } from 'k-rpc';
 
 import { Parser } from 'expr-eval'
 import krpc from 'k-rpc'
@@ -15,11 +15,11 @@ import { DHT_Node } from './networking/dht';
 import { authenticateServerHTTP } from './networking/http';
 import { RPC } from './networking/rpc';
 import { authenticatedPeers, type UDP_Server } from './networking/udp';
-import { type Identity, proveClient, verifyServer } from './protocol/HIP1/handshake';
 import WebSocketClient from "./networking/ws/client";
 import { WebSocketServerConnection } from './networking/ws/server';
 import { Peer } from "./peer";
 import { PeerMap } from './PeerMap';
+import { type Identity, proveClient, verifyServer } from './protocol/HIP1/handshake';
 
 const cacheFile = Bun.file('./data/ws-servers.json')
 const avg = (numbers: number[]) => numbers.reduce((accumulator, currentValue) => accumulator + currentValue, 0) / numbers.length
@@ -184,33 +184,11 @@ export default class PeerManager {
     }
   }
 
-  private async getAuth(hostname: `${string}:${number}`, skipKnownCheck = false) {
-    if (hostname === this.node.hostname) return false
-    if (hostname === `${this.node.ip}:${this.node.port}`) return false
-    if (!skipKnownCheck && this.knownPeers.has(hostname)) return false
-    this.knownPeers.add(hostname)
-
-    const auth = await authenticateServerHTTP(hostname)
-    if (Array.isArray(auth)) return warn('DEVWARN:', `[PEERS] Failed to authenticate server ${auth[1]}`)
-    if (this.has(auth.address)) return warn('DEVWARN:', `[PEERS] Already connected/connecting to peer ${auth.username} ${auth.address} ${auth.hostname}`)
-    if (auth.address === this.account.address) return warn('DEVWARN:', `[PEERS] Not connecting to self`)
-
-    if ('hostname' in auth) {
-      if (auth.hostname === this.node.hostname) return false
-      if (auth.hostname === `${this.node.ip}:${this.node.port}`) return false
-      if (!skipKnownCheck && auth.hostname !== hostname && this.knownPeers.has(auth.hostname)) return false
-      this.knownPeers.add(auth.hostname)
-    }
-
-    return auth
-  }
-
-
   private async authViaUDP(hostname: `${string}:${number}`): Promise<false | Identity> {
     const [host, port] = hostname.split(':') as [string, `${number}`]
     log(`[PEERS] Attempting UDP auth to ${hostname}`)
-    const response = await new Promise<{ r?: Record<string, Buffer> } | undefined>(resolve => {
-      this.rpc.query({ host, port: Number(port) }, { a: proveClient(this.account, this.node, hostname), q: `${this.rpcConfig.prefix}auth` }, (err: globalThis.Error | null, res: { r?: Record<string, Buffer> } | undefined) => {
+    const response = await new Promise<KRPCResponse | undefined>(resolve => {
+      this.rpc.query({ host, port: Number(port) }, { a: proveClient(this.account, this.node, hostname), q: `${this.rpcConfig.prefix}auth` }, (err: globalThis.Error | null, res?: KRPCResponse) => {
         if (err) {
           warn('DEVWARN:', `[PEERS] UDP auth query failed for ${hostname}: ${err.message}`)
           resolve(undefined)
@@ -224,7 +202,7 @@ export default class PeerManager {
       return false
     }
     // Decode server identity from bencode response
-    const r = response.r
+    const { r } = response as { r: Record<string, Buffer> }
     try {
       const serverAuth = {
         address: r['address']?.toString(),
@@ -252,6 +230,27 @@ export default class PeerManager {
       warn('DEVWARN:', `[PEERS] Failed to parse UDP auth response from ${hostname}: ${err}`)
       return false
     }
+  }
+
+  private async getAuth(hostname: `${string}:${number}`, skipKnownCheck = false) {
+    if (hostname === this.node.hostname) return false
+    if (hostname === `${this.node.ip}:${this.node.port}`) return false
+    if (!skipKnownCheck && this.knownPeers.has(hostname)) return false
+    this.knownPeers.add(hostname)
+
+    const auth = await authenticateServerHTTP(hostname)
+    if (Array.isArray(auth)) return warn('DEVWARN:', `[PEERS] Failed to authenticate server ${auth[1]}`)
+    if (this.has(auth.address)) return warn('DEVWARN:', `[PEERS] Already connected/connecting to peer ${auth.username} ${auth.address} ${auth.hostname}`)
+    if (auth.address === this.account.address) return warn('DEVWARN:', `[PEERS] Not connecting to self`)
+
+    if ('hostname' in auth) {
+      if (auth.hostname === this.node.hostname) return false
+      if (auth.hostname === `${this.node.ip}:${this.node.port}`) return false
+      if (!skipKnownCheck && auth.hostname !== hostname && this.knownPeers.has(auth.hostname)) return false
+      this.knownPeers.add(auth.hostname)
+    }
+
+    return auth
   }
 
   private async toSocket(peer: `${string}:${number}` | RPC | WebSocketServerConnection, preferTransport: 'TCP' | 'UDP', skipKnownCheck = false): Promise<false | Socket> {
