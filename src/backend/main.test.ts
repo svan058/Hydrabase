@@ -550,9 +550,8 @@ describe('NAT-friendly authentication', () => {
     const clientAccount = new Account(generatePrivateKey())
     const clientAuth = proveClient(clientAccount, mockNATClient, `${mockNode.hostname}:${mockNode.port}`)
 
-    const mockFailedAuthenticator = async (_hostname: `${string}:${number}`) => {
-      return [500, 'Failed to authenticate server via HTTP: Unable to connect'] as [number, string]
-    }
+    const mockFailedAuthenticator = () =>
+      Promise.resolve([500, 'Failed to authenticate server via HTTP: Unable to connect'] as [number, string])
 
     const result = await verifyClient(mockNode, clientAuth, undefined, mockFailedAuthenticator)
 
@@ -567,9 +566,8 @@ describe('NAT-friendly authentication', () => {
     const clientAccount = new Account(generatePrivateKey())
     const clientAuth = proveClient(clientAccount, mockNATClient, `${mockNode.hostname}:${mockNode.port}`)
 
-    const mockFailedAuthenticator = async (_hostname: `${string}:${number}`) => {
-      return [500, 'Failed to authenticate server via UDP'] as [number, string]
-    }
+    const mockFailedAuthenticator = () =>
+      Promise.resolve([500, 'Failed to authenticate server via UDP'] as [number, string])
 
     const result = await verifyClient(mockNode, clientAuth, undefined, mockFailedAuthenticator)
 
@@ -583,9 +581,8 @@ describe('NAT-friendly authentication', () => {
     const clientAccount = new Account(generatePrivateKey())
     const clientAuth = proveClient(clientAccount, mockNATClient, `${mockNode.hostname}:${mockNode.port}`)
 
-    const mockFailedAuthenticator = async (_hostname: `${string}:${number}`) => {
-      return [500, 'Failed to fetch server authentication'] as [number, string]
-    }
+    const mockFailedAuthenticator = () =>
+      Promise.resolve([500, 'Failed to fetch server authentication'] as [number, string])
 
     const result = await verifyClient(mockNode, clientAuth, undefined, mockFailedAuthenticator)
 
@@ -596,9 +593,8 @@ describe('NAT-friendly authentication', () => {
     const clientAccount = new Account(generatePrivateKey())
     const clientAuth = proveClient(clientAccount, mockNATClient, `${mockNode.hostname}:${mockNode.port}`)
 
-    const mockFailedAuthenticator = async (_hostname: `${string}:${number}`) => {
-      return [500, 'Failed to parse server authentication'] as [number, string]
-    }
+    const mockFailedAuthenticator = () =>
+      Promise.resolve([500, 'Failed to parse server authentication'] as [number, string])
 
     const result = await verifyClient(mockNode, clientAuth, undefined, mockFailedAuthenticator)
 
@@ -613,9 +609,8 @@ describe('NAT-friendly authentication', () => {
     const wrongSignature = proveClient(wrongAccount, mockNATClient, 'wrong.server:9999')
     clientAuth.signature = wrongSignature.signature
 
-    const mockFailedAuthenticator = async (_hostname: `${string}:${number}`) => {
-      return [500, 'Failed to authenticate server via HTTP: Unable to connect'] as [number, string]
-    }
+    const mockFailedAuthenticator = () =>
+      Promise.resolve([500, 'Failed to authenticate server via HTTP: Unable to connect'] as [number, string])
 
     const result = await verifyClient(mockNode, clientAuth, undefined, mockFailedAuthenticator)
 
@@ -630,14 +625,13 @@ describe('NAT-friendly authentication', () => {
     const clientAccount = new Account(generatePrivateKey())
     const clientAuth = proveClient(clientAccount, mockNATClient, `${mockNode.hostname}:${mockNode.port}`)
 
-    const mockSuccessfulAuthenticator = async (_hostname: `${string}:${number}`) => {
-      return {
+    const mockSuccessfulAuthenticator = () =>
+      Promise.resolve({
         address: clientAccount.address,
         hostname: `${mockNATClient.hostname}:${mockNATClient.port}` as `${string}:${number}`,
         userAgent: 'Hydrabase/test',
         username: mockNATClient.username
-      }
-    }
+      })
 
     const result = await verifyClient(mockNode, clientAuth, undefined, mockSuccessfulAuthenticator)
 
@@ -652,14 +646,13 @@ describe('NAT-friendly authentication', () => {
     const differentAccount = new Account(generatePrivateKey())
     const clientAuth = proveClient(clientAccount, mockNATClient, `${mockNode.hostname}:${mockNode.port}`)
 
-    const mockMismatchAuthenticator = async (_hostname: `${string}:${number}`) => {
-      return {
+    const mockMismatchAuthenticator = () =>
+      Promise.resolve({
         address: differentAccount.address,
         hostname: `${mockNATClient.hostname}:${mockNATClient.port}` as `${string}:${number}`,
         userAgent: 'Hydrabase/test',
         username: mockNATClient.username
-      }
-    }
+      })
 
     const result = await verifyClient(mockNode, clientAuth, undefined, mockMismatchAuthenticator)
 
@@ -674,9 +667,8 @@ describe('NAT-friendly authentication', () => {
     const clientAccount = new Account(generatePrivateKey())
     const clientAuth = proveClient(clientAccount, mockNATClient, `${mockNode.hostname}:${mockNode.port}`)
 
-    const mockAuthenticator = async (_hostname: `${string}:${number}`) => {
-      return [403, 'Invalid signature from server'] as [number, string]
-    }
+    const mockAuthenticator = () =>
+      Promise.resolve([403, 'Invalid signature from server'] as [number, string])
 
     const result = await verifyClient(mockNode, clientAuth, undefined, mockAuthenticator)
 
