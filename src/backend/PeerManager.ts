@@ -1,6 +1,8 @@
 import type { KRPC } from 'k-rpc';
 
 import { Parser } from 'expr-eval'
+import krpc from 'k-rpc'
+import krpcSocket from 'k-rpc-socket'
 
 import type { Config, Socket } from '../types/hydrabase';
 import type { Request, Response, SearchResult } from '../types/hydrabase-schemas';
@@ -9,8 +11,10 @@ import type { Repositories } from './db'
 import type MetadataManager from './Metadata'
 
 import { debug, log, warn } from '../utils/log';
+import { DHT_Node } from './networking/dht';
 import { authenticateServerHTTP } from './networking/http';
-import { authenticatedPeers, RPC, startRPC } from './networking/rpc';
+import { RPC } from './networking/rpc';
+import { authenticatedPeers, type UDP_Server } from './networking/udp';
 import WebSocketClient from "./networking/ws/client";
 import { WebSocketServerConnection } from './networking/ws/server';
 import { Peer } from "./peer";
@@ -76,9 +80,8 @@ export default class PeerManager {
   private readonly knownPeers = new Set<`${string}:${number}`>() // TODO: prune old peers, mem leak
   private readonly peers = new PeerMap()
 
-  constructor(public readonly account: Account, private readonly metadataManager: MetadataManager, private readonly repos: Repositories, private readonly search: <T extends Request['type']>(type: T, query: string, searchPeers?: boolean) => Promise<Response<T>>, private readonly node: Config['node'], private readonly dhtConfig: Config['dht'], apiKey: string | undefined) {
-    const { rpc } = startRPC(this, node, dhtConfig, apiKey)
-    this.rpc = rpc
+  constructor(public readonly account: Account, private readonly metadataManager: MetadataManager, private readonly repos: Repositories, private readonly search: <T extends Request['type']>(type: T, query: string, searchPeers?: boolean) => Promise<Response<T>>, private readonly node: Config['node'], dhtConfig: Config['dht'], private readonly rpcConfig: Config['rpc'], public readonly udpServer: UDP_Server) {
+    this.rpc = krpc({ id: Buffer.from(DHT_Node.getNodeId(node)), krpcSocket: krpcSocket(udpServer), nodes: dhtConfig.bootstrapNodes.split(','), timeout: 5_000 })
   }
 
   // TODO: some mechanism to proactively propagate unsolicited votes
@@ -207,6 +210,6 @@ export default class PeerManager {
     const identity = await this.getAuth(authenticatedPeers.get(peer)?.hostname ?? peer, skipKnownCheck)
     if (!identity) return identity
     if (preferTransport === 'TCP') return new WebSocketClient(identity, this, this.node)
-    return (await RPC.fromOutbound(identity, this, this.dhtConfig, this.node)) || false
+    return (await RPC.fromOutbound(identity, this, this.rpcConfig, this.node)) || false
   }
 }

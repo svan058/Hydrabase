@@ -16,7 +16,6 @@ const CONFIG: Config = {
     reannounce: 15*60*1_000,
     requireConnection: process.env['REQUIRE_DHT_CONNECTION'] !== 'false',
     roomSeed: 'hydrabase',
-    rpcPrefix: 'hydra',
   },
   formulas: {
     finalConfidence: 'avg(x, y, z)',
@@ -29,6 +28,9 @@ const CONFIG: Config = {
     port: Number(process.env['PORT'] ?? 4545),
     preferTransport: (process.env['PREFER_TRANSPORT'] === 'UDP' ? 'UDP' : 'TCP'),
     username: process.env['USERNAME'] ?? 'Anonymous',
+  },
+  rpc: {
+    prefix: 'hydra_'
   },
   soulIdCutoff: 32,
   upnp: {

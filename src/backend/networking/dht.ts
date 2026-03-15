@@ -6,7 +6,7 @@ import type { Config } from '../../types/hydrabase';
 import type PeerManager from '../PeerManager';
 
 import { debug, error, log, stats, warn } from '../../utils/log';
-import { authenticatedPeers } from './rpc';
+import { authenticatedPeers } from './udp';
 
 export class DHT_Node {
   public readonly resolved = {
