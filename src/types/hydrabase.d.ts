@@ -11,7 +11,6 @@ export interface Config {
     reannounce: number
     requireConnection: boolean
     roomSeed: string
-    rpcPrefix: string
   }
   formulas: {
     finalConfidence: string
@@ -24,6 +23,9 @@ export interface Config {
     port: number
     preferTransport: 'TCP' | 'UDP'
     username: string
+  }
+  rpc: {
+    prefix: string
   }
   soulIdCutoff: number
   upnp: {

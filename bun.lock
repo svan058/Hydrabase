@@ -1,10 +1,12 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "hydrabase",
       "dependencies": {
         "@iplookup/country": "^1.0.20260223",
+        "bencode": "^4.0.0",
         "bittorrent-dht": "^11.0.11",
         "country-code-emoji": "^2.3.0",
         "dotenv": "^17.3.1",
@@ -12,6 +14,7 @@
         "eslint-plugin-react-hooks": "^7.0.1",
         "expr-eval": "^2.0.2",
         "js-sha3": "^0.9.3",
+        "k-rpc-socket": "^1.11.1",
         "nat-upnp": "^1.1.1",
         "react": "^19.2.4",
         "react-dom": "^19.2.4",
@@ -21,6 +24,7 @@
       },
       "devDependencies": {
         "@eslint/js": "^10.0.1",
+        "@types/bencode": "^2.0.4",
         "@types/bun": "^1.3.9",
         "@types/geoip-lite": "^1.4.4",
         "@types/nat-upnp": "^1.1.5",
@@ -235,6 +239,8 @@
     "@types/babel__template": ["@types/babel__template@7.4.4", "", { "dependencies": { "@babel/parser": "^7.1.0", "@babel/types": "^7.0.0" } }, "sha512-h/NUaSyG5EyxBIp8YRxo4RMe2/qQgvyowRwVMzhYhBCONbW8PUsg4lkFMrhgZhUe5z3L3MiLDuvyJ/CaPa2A8A=="],
 
     "@types/babel__traverse": ["@types/babel__traverse@7.28.0", "", { "dependencies": { "@babel/types": "^7.28.2" } }, "sha512-8PvcXf70gTDZBgt9ptxJ8elBeBjcLOAcOtoO/mPJjtji1+CdGbHgm77om1GrsPxsiE+uXIpNSK64UYaIwQXd4Q=="],
+
+    "@types/bencode": ["@types/bencode@2.0.4", "", { "dependencies": { "@types/node": "*" } }, "sha512-sirDu3HUSG7jZMlhTDvCzSFiPR4lkUYBQA75CoMi6DEf2alFZWJWtHgfjBbb9PachPZhPMB1IlH09deyMNBipQ=="],
 
     "@types/bun": ["@types/bun@1.3.10", "", { "dependencies": { "bun-types": "1.3.10" } }, "sha512-0+rlrUrOrTSskibryHbvQkDOWRJwJZqZlxrUs1u4oOoTln8+WIXBPmAuCF35SWB2z4Zl3E84Nl/D0P7803nigQ=="],
 

@@ -5,26 +5,26 @@ import type { Account } from "../../Crypto/Account";
 
 // @ts-expect-error: This is supported by bun
 import VERSION from "../../../../VERSION" with { type: "text" };
-import { debug, log, warn } from "../../../utils/log";
+import { debug } from "../../../utils/log";
 import { Signature } from "../../Crypto/Signature";
-import { authenticateServerHTTP } from "../../networking/http";
+import { upgradeHostname } from "../HIP4/upgrade";
 
 export const IdentitySchema = z.object({
   address: z.string().regex(/^0x/iu, { message: "Address must start with 0x" }).transform(val => val as `0x${string}`),
   hostname: z.string().includes(':').transform(h => h as `${string}:${number}`),
   userAgent: z.string(),
   username: z.string()
-})
+}).strict()
 
 export const AuthSchema = IdentitySchema.extend({
   signature: z.string()
-})
+}).strict()
 
 export type Auth = z.infer<typeof AuthSchema>
 export type Identity = z.infer<typeof IdentitySchema>
 
 export const proveServer = (account: Account, node: Config['node']): Auth => {
-  debug(`[HIP3] Proving server`)
+  debug(`[HIP1] Proving server`)
   return {
     address: account.address,
     hostname: `${node.hostname}:${node.port}`,
@@ -41,7 +41,7 @@ export const verifyServer = (auth: Auth, hostname: string): [number, string] | t
 }
 
 export const proveClient = (account: Account, node: Config['node'], hostname: `${string}:${number}`, x = false): Auth => {
-  debug(`[HIP3] Proving client to ${hostname}`)
+  debug(`[HIP1] Proving client to ${hostname}`)
   const result = {
     address: account.address,
     hostname: `${node.hostname}:${node.port}`,
@@ -52,44 +52,14 @@ export const proveClient = (account: Account, node: Config['node'], hostname: `$
   return x ? Object.fromEntries(Object.entries(result).map(entry => ([`x-${entry[0]}`, entry[1]]))) as Auth : result
 }
 
-export const verifyClient = async (node: Config['node'], auth: Auth | { apiKey: string }, apiKey: string | undefined, serverAuthenticator?: (hostname: `${string}:${number}`) => Promise<[number, string] | Identity>): Promise<[number, string] | Identity> => {
+export const verifyClient = async (node: Config['node'], hostname: string, auth: Auth | { apiKey: string }, apiKey: string | undefined, authenticateHostname: (hostname: `${string}:${number}`) => [number, string] | Promise<[number, string] | Identity>): Promise<[number, string] | Identity> => {
   if ('apiKey' in auth) {
-    debug(`[HIP3] Verifying API`)
-    if (auth.apiKey !== apiKey) return [500, 'Invalid API Key']
-    return { address: '0x0', hostname: 'API:4545', userAgent: `Hydrabase-API/${VERSION}`, username: node.username }
+    debug(`[HIP1] Verifying API`)
+    return auth.apiKey === apiKey ? { address: '0x0', hostname: 'API:4545', userAgent: `Hydrabase-API/${VERSION}`, username: `${node.username} (API)` } : [500, 'Invalid API Key']
   }
-  debug(`[HIP3] Verifying client ${auth.username} ${auth.address} ${auth.hostname}`)
-
-  debug(`[HIP3] Verifying client address ${auth.address}`)
+  debug(`[HIP1] Verifying client address ${auth.address}`)
   if (!Signature.fromString(auth.signature).verify(`I am connecting to ${node.hostname}:${node.port}`, auth.address)) return [403, 'Failed to authenticate address']
-
-  const authenticate = serverAuthenticator ?? authenticateServerHTTP
-  const isHostnameValid = await new Promise<[number, string] | true>(resolve => {
-    debug(`[HIP3] Verifying client hostname ${auth.address} ${auth.hostname}`)
-    authenticate(auth.hostname).then(identity => {
-      if (Array.isArray(identity)) {
-        const [, errorMessage] = identity
-        // SECURITY: When reverse auth fails due to connectivity (client behind NAT),
-        // accept based on signature verification alone. Address ownership IS verified.
-        // Risk: unverified hostname claims could be announced to the network.
-        const isConnectionError = (msg: string) => 
-          ['Unable to connect', 'Failed to fetch', 'Failed to authenticate server', 'Failed to parse']
-            .some(pattern => msg.includes(pattern))
-        if (isConnectionError(errorMessage)) {
-          debug(`[HIP3] Reverse auth failed for ${auth.hostname}`)
-          log(`[HIP3] Accepting NAT client ${auth.username} ${auth.address} ${auth.hostname}`)
-          return resolve(true)
-        }
-        
-        return resolve(identity)
-      }
-      if (identity.address !== auth.address) {
-        warn('DEVWARN:', "[HIP3] Invalid Address", {expected:auth.address,got:identity.address})
-        return resolve([500, `Invalid address`])
-      }
-      return resolve(true)
-    })
-  })
+  const isHostnameValid = await upgradeHostname(hostname, auth, authenticateHostname)
   if (Array.isArray(isHostnameValid)) return isHostnameValid
   return auth
 }

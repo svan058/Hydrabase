@@ -5,7 +5,7 @@ import type PeerManager from '../PeerManager';
 import { debug, log, warn } from '../../utils/log';
 import { AuthSchema, type Identity, proveServer, verifyServer } from "../protocol/HIP1/handshake";
 import { serveStaticFile } from "../webui";
-import { authenticatedPeers } from './rpc';
+import { authenticatedPeers } from "./udp";
 import { handleConnection, websocketHandlers } from "./ws/server";
 
 export const authenticateServerHTTP = async (hostname: `${string}:${number}`): Promise<[number, string] | Identity> => {
@@ -41,7 +41,12 @@ export const startServer = (account: Account, peerManager: PeerManager, node: Co
     fetch: async (req, server) =>  {
       const url = new URL(req.url)
       if (req.headers.get("upgrade") !== "websocket") return serveStaticFile(url.pathname)
-      const response = await handleConnection(server, req, server.requestIP(req), node, apiKey)
+      const ip = server.requestIP(req)
+      if (!ip) {
+        warn('DEVWARN:', '[SERVER] Failed to get client IP')
+        return new Response('Failed to get client IP', { status: 500 })
+      }
+      const response = await handleConnection(server, req, ip, node, apiKey)
       if (response === undefined) return response
       const {address, hostname, res} = response
       warn('DEVWARN:', `[SERVER] Rejected connection with client ${address || hostname ? [address,hostname].join(' ') : 'N/A'} for reason: ${res[1]}`)
