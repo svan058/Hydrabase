@@ -1,12 +1,16 @@
+import type { KRPC } from 'k-rpc'
+
 import DHT, { type DHTNode } from 'bittorrent-dht'
 import { SHA1 } from 'bun';
+import krpc from 'k-rpc'
+import krpcSocket from 'k-rpc-socket'
 import net from 'net'
 
 import type { Config } from '../../types/hydrabase';
-import type PeerManager from '../PeerManager';
+import type PeerManager from '../PeerManager'
 
 import { debug, error, log, stats, warn } from '../../utils/log';
-import { authenticatedPeers } from './udp';
+import { authenticatedPeers, type UDP_Server } from './udp'
 
 export class DHT_Node {
   public readonly resolved = {
@@ -15,6 +19,7 @@ export class DHT_Node {
     listening: false,
     ready: false,
   }
+  public readonly rpc: KRPC
   get nodes() {
     return this.dht.toJSON().nodes
   }
@@ -22,9 +27,10 @@ export class DHT_Node {
   private readonly dht: DHT
   private readonly knownPeers: Set<`${string}:${number}`> // TODO: prune old peers, mem leak
   private lastResolved = 0
-  constructor (peers: PeerManager, private readonly config: Config['dht'], private readonly node: Config['node'], private readonly cacheFile = Bun.file('./data/dht-nodes.json')) {
+  constructor (peers: PeerManager, private readonly config: Config['dht'], private readonly node: Config['node'], udpServer: UDP_Server, private readonly cacheFile = Bun.file('./data/dht-nodes.json')) {
     this.knownPeers = new Set<`${string}:${number}`>([`${node.hostname}:${node.port}`,`${node.ip}:${node.port}`])
-    this.dht = new DHT({ bootstrap: config.bootstrapNodes.split(','), host: net.isIP(node.hostname) ? node.hostname : node.ip, krpc: peers.rpc, nodeId: DHT_Node.getNodeId(node) })
+    this.rpc = krpc({ id: Buffer.from(DHT_Node.getNodeId(node)), krpcSocket: krpcSocket(udpServer), nodes: config.bootstrapNodes.split(','), timeout: 5_000 })
+    this.dht = new DHT({ bootstrap: config.bootstrapNodes.split(','), host: net.isIP(node.hostname) ? node.hostname : node.ip, krpc: this.rpc, nodeId: DHT_Node.getNodeId(node) })
     this.dht.listen(node.port, node.listenAddress, () => {
       debug(`[DHT] Listening on port ${node.port}`)
       this.resolved.listening = true

@@ -3,11 +3,12 @@ import dgram from 'dgram'
 import z from 'zod'
 
 import type { Config } from '../../types/hydrabase'
+import type { Account } from '../Crypto/Account'
 import type PeerManager from '../PeerManager'
 
 import { error, log, warn } from '../../utils/log'
 import { FSMap } from '../FSMap'
-import { AuthSchema, type Identity, proveServer, verifyClient } from '../protocol/HIP1/handshake'
+import { type Auth, AuthSchema, type Identity, proveClient, proveServer, verifyClient, verifyServer } from '../protocol/HIP1/handshake'
 import { RPC } from './rpc'
 
 export const authenticatedPeers = new FSMap<`${string}:${number}`, Identity>('./data/authenticated-peers.json')
@@ -77,7 +78,7 @@ const authHandler = async (socket: dgram.Socket, peerManager: PeerManager, query
     return
   }
   log(`[RPC] Authenticated peer ${identity.username} ${identity.address} at ${identity.hostname}`)
-  if (!udpConnections.has(identity.hostname)) peerManager.add(RPC.fromInbound(peerManager, identity, config))
+  if (!udpConnections.has(identity.hostname)) peerManager.add(RPC.fromInbound(peerManager, identity, config, socket))
   if (respond) socket.send(bencode.encode({ h2: proveServer(peerManager.account, node), t: query.t, y: 'h2' } satisfies HandshakeResponse), peer.port, peer.host)
 }
 
@@ -85,7 +86,10 @@ const handleUDPAuthQuery = async (socket: dgram.Socket, peerManager: PeerManager
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { id: _id, token: _token, ...authFields } = query.a
   const parsed = AuthSchema.safeParse(authFields)
-  if (!parsed.success) return false
+  if (!parsed.success) {
+    warn('DEVWARN:', `[RPC] UDP auth query schema validation failed for ${peerHostname}: ${JSON.stringify(parsed.error.issues)}`)
+    return false
+  }
   const identity = await verifyClient(node, peerHostname, parsed.data, apiKey, () => [500, 'UDP hostname mismatch'] as [number, string])
   if (Array.isArray(identity)) {
     warn('DEVWARN:', `[RPC] UDP auth query verification failed for ${peerHostname}: ${identity[1]}`)
@@ -97,20 +101,22 @@ const handleUDPAuthQuery = async (socket: dgram.Socket, peerManager: PeerManager
   const tBytes = Buffer.from(query.t.slice(2), 'hex')
   socket.send(bencode.encode({ r: { id: `${node.hostname}:${node.port}`, ...proveServer(peerManager.account, node) }, t: tBytes, y: 'r' }), peer.port, peer.host)
   // Add peer connection using observed address (NAT-safe)
-  if (!udpConnections.has(peerHostname)) {
-    peerManager.add(RPC.fromInbound(peerManager, { ...identity, hostname: peerHostname }, config))
+  if (!peerManager.has(identity.address)) {
+    peerManager.add(RPC.fromInbound(peerManager, { ...identity, hostname: peerHostname }, config, socket))
   }
   return true
 }
 
 const messageHandler = async (socket: dgram.Socket, peerManager: PeerManager, query: Query, peer: { host: string, port: number }, node: Config['node'], config: Config['rpc'], apiKey: string | undefined) => {
   const peerHostname = `${peer.host}:${peer.port}` as `${string}:${number}`
+
+  // Always process auth queries, regardless of authentication state
+  if (query.q === `${config.prefix}auth`) {
+    const handled = await handleUDPAuthQuery(socket, peerManager, query, peerHostname, node, config, apiKey, peer)
+    if (handled) return
+  }
+
   if (!authenticatedPeers.has(peerHostname)) {
-    // Handle auth queries from unauthenticated peers (UDP-first auth)
-    if (query.q === `${config.prefix}auth`) {
-      const handled = await handleUDPAuthQuery(socket, peerManager, query, peerHostname, node, config, apiKey, peer)
-      if (handled) return
-    }
     warn('DEVWARN:', `[RPC] Received message from unauthenticated peer ${peerHostname}`)
     const tBytes = Buffer.from(query.t.slice(2), 'hex')
     socket.send(bencode.encode({ h1: proveServer(peerManager.account, node), t: tBytes, y: 'h1' }), peer.port, peer.host)
@@ -128,6 +134,85 @@ const messageHandler = async (socket: dgram.Socket, peerManager: PeerManager, qu
     const tBytes = Buffer.from(query.t.slice(2), 'hex')
     socket.send(bencode.encode({ h1: proveServer(peerManager.account, node), t: tBytes, y: 'h1' }), peer.port, peer.host)
   }
+}
+
+const randomTid = () => {
+  const tid = Buffer.alloc(4)
+  tid.writeUInt32BE(Math.floor(Math.random() * 0xFFFFFFFF))
+  return tid
+}
+
+const decodeMessageType = (decoded: Record<string, unknown>): string | undefined => {
+  const yBuf = decoded['y']
+  if (!yBuf) return undefined
+  return yBuf instanceof Uint8Array ? new TextDecoder().decode(yBuf) : String(yBuf)
+}
+
+const verifyAndCacheAuth = (hostname: `${string}:${number}`, data: unknown): [number, string] | Auth => {
+  const parsed = AuthSchema.safeParse(data)
+  if (!parsed.success) return [500, `Invalid auth response from ${hostname}`]
+  const verified = verifyServer(parsed.data, hostname)
+  if (verified !== true) return verified
+  authenticatedPeers.set(hostname, parsed.data)
+  return parsed.data
+}
+
+const parseRpcAuthResponse = (hostname: `${string}:${number}`, decoded: Record<string, unknown>): [number, string] | Auth | undefined => {
+  const r = decoded['r'] as Record<string, Buffer | Uint8Array> | undefined
+  if (!r) return undefined
+  const serverAuth: Record<string, string> = {}
+  for (const [key, val] of Object.entries(r)) {
+    if (key === 'id') continue
+    serverAuth[key] = val instanceof Uint8Array ? new TextDecoder().decode(val) : String(val)
+  }
+  return verifyAndCacheAuth(hostname, serverAuth)
+}
+
+const waitForRpcAuthResponse = (hostname: `${string}:${number}`, socket: dgram.Socket, host: string, portNum: number, timeoutMs: number): Promise<[number, string] | Auth> =>
+  new Promise(resolve => {
+    // eslint-disable-next-line prefer-const
+    let timer: ReturnType<typeof setTimeout>
+    const handler = (msg: Buffer, rinfo: dgram.RemoteInfo) => {
+      if (rinfo.address !== host || rinfo.port !== portNum) return
+      try {
+        const decoded = bencode.decode(msg) as Record<string, unknown>
+        if (decodeMessageType(decoded) !== 'r') return
+        const result = parseRpcAuthResponse(hostname, decoded)
+        if (!result) return
+        clearTimeout(timer)
+        socket.removeListener('message', handler)
+        resolve(result)
+      } catch { /* ignore parse errors */ }
+    }
+    timer = setTimeout(() => {
+      socket.removeListener('message', handler)
+      resolve([500, `UDP auth timeout for ${hostname}`])
+    }, timeoutMs)
+    socket.on('message', handler)
+  })
+
+/**
+ * Authenticate against a remote server over UDP.
+ * Sends a k-rpc style auth query with proveClient credentials.
+ * Also sends h1 handshake concurrently for peers that support it.
+ */
+export const authenticateServerUDP = (hostname: `${string}:${number}`, socket: dgram.Socket, account: Account, node: Config['node']): Promise<[number, string] | Auth> => {
+  const [host, port] = hostname.split(':') as [string, `${number}`]
+  const portNum = Number(port)
+
+  // Send k-rpc auth query (primary path for outbound UDP auth)
+  socket.send(bencode.encode({ a: proveClient(account, node, hostname), q: 'hydra_auth', t: randomTid(), y: 'q' }), portNum, host)
+  log(`[UDP] Sent UDP auth to ${hostname}`)
+
+  return waitForRpcAuthResponse(hostname, socket, host, portNum, 10_000)
+}
+
+/**
+ * Create an outbound RPC connection from an already-authenticated identity.
+ */
+export const fromOutbound = (socket: dgram.Socket, peerManager: PeerManager, identity: Identity, config: Config['rpc']): false | RPC => {
+  if (udpConnections.has(identity.hostname)) return false
+  return RPC.fromInbound(peerManager, identity, config, socket)
 }
 
 export class UDP_Server {

@@ -1,10 +1,12 @@
-import krpc from 'k-rpc'
+import type dgram from 'dgram'
+
+import bencode from 'bencode'
 
 import type { Config, Socket } from '../../types/hydrabase'
 import type PeerManager from '../PeerManager'
 
 import { debug, error, log, warn } from '../../utils/log'
-import { type Identity, proveClient } from '../protocol/HIP1/handshake'
+import { type Identity } from '../protocol/HIP1/handshake'
 import { authenticatedPeers, udpConnections } from './udp'
 
 export class RPC implements Socket {
@@ -14,7 +16,7 @@ export class RPC implements Socket {
   private closeHandlers: (() => void)[] = []
   private readonly node: { host: string, port: number }
   private openHandler?: () => void
-  private constructor(private readonly peers: PeerManager, private readonly identity: { address: `0x${string}`, hostname: `${string}:${number}`, userAgent: string, username: string }, private readonly config: Config['rpc']) {
+  private constructor(_peers: PeerManager, private readonly identity: { address: `0x${string}`, hostname: `${string}:${number}`, userAgent: string, username: string }, private readonly config: Config['rpc'], private readonly udpSocket?: dgram.Socket) {
     authenticatedPeers.set(`${identity.hostname}`, identity)
     udpConnections.set(identity.hostname, this)
     log(`[RPC] Connecting to peer ${identity.hostname}`)
@@ -23,21 +25,7 @@ export class RPC implements Socket {
     this.peer = { ...identity, hostname: identity.hostname }
     setTimeout(() => this.openHandler?.(), 0)
   }
-  static readonly fromInbound = (peers: PeerManager, identity: Identity, config: Config['rpc']): RPC => new RPC(peers, identity, config)
-  static readonly fromOutbound = async (identity: Identity, peers: PeerManager, config: Config['rpc'], node: Config['node']): Promise<false | RPC> => {
-    const response = await new Promise<krpc.KRPCResponse | undefined>(resolve => {
-      const [host, port] = identity.hostname.split(':') as [string, `${number}`]
-      peers.rpc.query({ host, port: Number(port) }, { a: proveClient(peers.account, node, identity.hostname), q: `${config.prefix}_auth` }, (err, res) => {
-        if (err) warn('DEVWARN:', `[RPC] Failed to send auth to ${identity.hostname} - ${err.message}`)
-        resolve(res)
-      })
-    })
-    if (!response) return warn('DEVWARN:', `[RPC] Auth handshake failed with ${identity.hostname}`)
-    const err = response.r?.['e']?.[1].toString()
-    if (err) return warn('DEVWARN:', `[RPC] Failed to authenticate from outbound - ${err}`)
-
-    return new RPC(peers, identity, config)
-  }
+  static readonly fromInbound = (peers: PeerManager, identity: Identity, config: Config['rpc'], udpSocket?: dgram.Socket): RPC => new RPC(peers, identity, config, udpSocket)
   public readonly close = () => {
     this.isOpened = false
     udpConnections.delete(`${this.node.host}:${this.node.port}`)
@@ -52,16 +40,24 @@ export class RPC implements Socket {
   public onOpen(handler: () => void) {
     this.openHandler = () => handler()
   }
-  public readonly send = (message: string) => this.peers.rpc.query(this.node, { a: { d: message }, q: `${this.config.prefix}_msg` }, err => {
-    if (err) {
-      error('ERROR:', `[RPC] Message failed to send ${err.message}`)
+  public readonly send = (message: string) => {
+    if (!this.udpSocket) {
+      warn('DEVWARN:', `[RPC] No UDP socket available for sending to ${this.identity.hostname}`)
       return
     }
-    debug(`[RPC] Peer acknowledged message ${this.identity.hostname}`)
-    if (!this.isOpened) {
-      this.isOpened = true
-      this.openHandler?.()
-    }
-  })
+    const tid = Buffer.alloc(4)
+    tid.writeUInt32BE(Math.floor(Math.random() * 0xFFFFFFFF))
+    const encoded = bencode.encode({ a: { d: message }, q: `${this.config.prefix}_msg`, t: tid, y: 'q' })
+    this.udpSocket.send(encoded, this.node.port, this.node.host, err => {
+      if (err) {
+        error('ERROR:', `[RPC] Message failed to send ${err.message}`)
+        return
+      }
+      debug(`[RPC] Peer acknowledged message ${this.identity.hostname}`)
+      if (!this.isOpened) {
+        this.isOpened = true
+        this.openHandler?.()
+      }
+    })
+  }
 }
-
