@@ -9,6 +9,7 @@ import type MetadataManager from './Metadata'
 import type { Identity } from './protocol/HIP1/handshake';
 
 import { debug, log, warn } from '../utils/log';
+import { DHT_Node } from './networking/dht';
 import { authenticateServerHTTP } from './networking/http';
 import { authenticateServerUDP, UDP_Client } from './networking/udp/client';
 import { authenticatedPeers, UDP_Server } from './networking/udp/server';
@@ -89,7 +90,7 @@ export default class PeerManager {
 
   // TODO: some mechanism to proactively propagate unsolicited votes
   public async add(_peer: `${string}:${number}` | UDP_Client | WebSocketServerConnection, preferTransport = this.node.preferTransport): Promise<boolean> {
-    const socket = typeof _peer === 'string' ? await this.toSocket(_peer, preferTransport) : _peer
+    const socket = typeof _peer === 'string' ? await this.toSocket(_peer, 'UDP') : _peer
     if (!socket) return false // TODO: try other 
     if (this.peers.has(socket.peer.address)) {
       if (socket.peer.address !== '0x0') {
@@ -170,13 +171,13 @@ export default class PeerManager {
     }
   }
 
-  private async toSocket(hostname: `${string}:${number}`, preferTransport: 'TCP' | 'UDP' = this.node.preferTransport): Promise<false | Socket> {
-    const auth = /*preferTransport === 'TCP' ? await authenticateServerHTTP(hostname) :*/ await authenticateServerUDP(this.udpServer, hostname, this.account, this.node)
+  private async toSocket(hostname: `${string}:${number}`, preferTransport: 'TCP' | 'UDP'): Promise<false | Socket> {
+    const auth = preferTransport === 'TCP' ? await authenticateServerHTTP(hostname) : await authenticateServerUDP(this.udpServer, hostname, this.account, this.node)
     if (Array.isArray(auth)) return warn('DEVWARN:', `[PEERS] Failed to authenticate peer ${hostname} ${auth[1]}`)
     const identity = this.verifyPeer(authenticatedPeers.get(hostname)?.hostname ?? hostname, auth)
     if (!identity) return identity
-    // if (preferTransport === 'TCP') return new WebSocketClient(identity, this, this.node)
-    return UDP_Client.connectToAuthenticatedPeer(this, identity, this.rpcConfig) || false
+    if (preferTransport === 'TCP') return new WebSocketClient(identity, this, this.node)
+    return UDP_Client.connectToAuthenticatedPeer(this, identity, this.rpcConfig, DHT_Node.getNodeId(this.node)) || false
   }
 
   private verifyPeer(hostname: `${string}:${number}`, auth: Identity) {

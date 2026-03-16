@@ -112,18 +112,17 @@ export class UDP_Server {
       socket.close();
     })
     socket.on('message', async (_msg, peer) => {
-      const result = rpcMessageSchema.safeParse(bencode.decode(_msg))
-      if (!result.success) return
-      const peerHostname = `${peer.address}:${peer.port}` as const
+      const {data} = rpcMessageSchema.safeParse(bencode.decode(_msg))
+      if (!data) return
 
-      const awaiter = this.responseAwaiters.get(result.data.t)
+      const awaiter = this.responseAwaiters.get(data.t)
       if (awaiter) {
-        const done = awaiter(result.data, { address: peer.address, port: peer.port })
-        if (done) this.responseAwaiters.delete(result.data.t)
+        const done = awaiter(data, { address: peer.address, port: peer.port })
+        if (done) this.responseAwaiters.delete(data.t)
         return
       }
 
-      await messageHandler(socket, peerManager(), result.data, { host: peer.address, port: peer.port }, node, config, apiKey)
+      await messageHandler(socket, peerManager(), data, { host: peer.address, port: peer.port }, node, config, apiKey)
     })
   }
 

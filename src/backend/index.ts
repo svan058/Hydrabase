@@ -1,10 +1,41 @@
+import dgram from 'dgram'
+
 import type { Config } from "../types/hydrabase"
 
-import { error } from '../utils/log';
-import { startNode } from './Node';
+import { error, warn } from '../utils/log'
+import { startNode } from './Node'
 
 process.on('unhandledRejection', (err) => error('ERROR:', '[MAIN] Unhandled rejection', {err}))
 process.on('uncaughtException', (err) => error('ERROR:', '[MAIN] Uncaught exception', {err}))
+
+import net from 'net'
+
+const socketHandler = (socket: dgram.Socket | net.Server, res: (value: boolean | PromiseLike<boolean>) => void, rej: (reason: Error) => void) => {
+  socket.addListener('listening', () => {
+    socket.close()
+    res(false)
+  })
+  socket.addListener('error', (err: Error) => {
+    socket.close()
+    if ((err as unknown as { code: string }).code === 'EADDRINUSE') res(true)
+    else rej(err)
+  })
+}
+const isTCPPortInUse = (port: number) => new Promise<boolean>((res, rej) => {
+  const server = net.createServer()
+  socketHandler(server, res, rej)
+  server.listen(port)
+})
+const isUDPPortInUse = (port: number) => new Promise<boolean>((res, rej) => {
+  const socket = dgram.createSocket('udp4')
+  socketHandler(socket, res, rej)
+  socket.bind(port)
+})
+
+const defaultPort = process.env['PORT'] ?? 4545
+let port = Number(defaultPort)
+while (await isTCPPortInUse(port) || await isUDPPortInUse(port)) port++
+if (port !== Number(defaultPort)) warn('WARN:', `[SERVER] Port ${defaultPort} in use - Using ${port} instead`)
 
 const ipServers = ['https://icanhazip.com', 'https://api.ipify.org']
 
@@ -41,7 +72,7 @@ const CONFIG: Config = {
     hostname: process.env['DOMAIN'] ?? ip,
     ip,
     listenAddress: process.env['LISTEN_ADDRESS'] ?? '0.0.0.0',
-    port: Number(process.env['PORT'] ?? 4545),
+    port,
     preferTransport: (process.env['PREFER_TRANSPORT'] === 'UDP' ? 'UDP' : 'TCP'),
     username: process.env['USERNAME'] ?? 'Anonymous',
   },
