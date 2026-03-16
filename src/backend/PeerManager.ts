@@ -10,8 +10,8 @@ import type { Identity } from './protocol/HIP1/handshake';
 
 import { debug, log, warn } from '../utils/log';
 import { authenticateServerHTTP } from './networking/http';
-import { RPC } from './networking/rpc';
-import { authenticatedPeers, authenticateServerUDP, fromOutbound, UDP_Server } from './networking/udp';
+import { authenticateServerUDP, UDP_Client } from './networking/udp/client';
+import { authenticatedPeers, UDP_Server } from './networking/udp/server';
 import WebSocketClient from "./networking/ws/client";
 import { WebSocketServerConnection } from './networking/ws/server';
 import { Peer } from "./peer";
@@ -88,13 +88,9 @@ export default class PeerManager {
   ) {}
 
   // TODO: some mechanism to proactively propagate unsolicited votes
-  public async add(_peer: `${string}:${number}` | RPC | WebSocketServerConnection, preferTransport = this.node.preferTransport, isFallback = false): Promise<boolean> {
+  public async add(_peer: `${string}:${number}` | UDP_Client | WebSocketServerConnection, preferTransport = this.node.preferTransport): Promise<boolean> {
     const socket = typeof _peer === 'string' ? await this.toSocket(_peer, preferTransport) : _peer
-    if (!socket && !isFallback && typeof _peer === 'string' && preferTransport === 'UDP') {
-      return this.add(_peer, 'TCP', true)
-    }
-
-    if (!socket) return false
+    if (!socket) return false // TODO: try other 
     if (this.peers.has(socket.peer.address)) {
       if (socket.peer.address !== '0x0') {
         debug(`[PEERS] Skipping duplicate connection to ${socket.peer.username} ${socket.peer.address} - already connected via ${this.peers.get(socket.peer.address) instanceof WebSocketClient ? 'client' : 'server'} connection`)
@@ -105,36 +101,18 @@ export default class PeerManager {
 
     // TODO: feedback endpoints, so soulsync can force set metadata votes to 0 or 1 confidence
     const peer = new Peer(socket, this, this.repos, this.metadataManager.installedPlugins, this.search)
-    let connectionEstablished = false
-    
+
     socket.onClose(() => {
-      this.peers.delete(socket.peer.address)
-      if (!connectionEstablished && !isFallback) {
-        const fallbackTransport = preferTransport === 'TCP' ? 'UDP' : 'TCP'
-        if (typeof _peer === 'string') {
-          this.knownPeers.delete(_peer)
-          this.knownPeers.delete(socket.peer.hostname)
-        }
-        this.add(_peer as `${string}:${number}`, fallbackTransport, true)
-      }
+      this.peers.delete(socket.peer.address) // TODO: fallback
     })
 
-    if (socket instanceof WebSocketClient) {
-      socket.onOpen(() => {
-        connectionEstablished = true
-        this.peers.set(socket.peer.address, peer)
-        cacheFile.write(JSON.stringify([...this.peers.values()].map(peer => peer.hostname)))
-        log(`[PEERS] Peer connection established with ${socket.peer.username} ${socket.peer.address} via CLIENT WebSocket`)
-        this.announce(peer)
-      })
-    } else {
-      connectionEstablished = true
+    socket.onOpen(() => {
       this.peers.set(socket.peer.address, peer)
       cacheFile.write(JSON.stringify([...this.peers.values()].map(peer => peer.hostname)))
-      log(`[PEERS] Peer connection established with ${socket.peer.username} ${socket.peer.address} via ${socket instanceof RPC ? 'RPC' : 'SERVER WebSocket'}`)
+      log(`[PEERS] Peer connection established with ${socket.peer.username} ${socket.peer.address}`)
       this.announce(peer)
-    }
-    
+    })
+
     return true
   }
 
@@ -154,12 +132,16 @@ export default class PeerManager {
   }
 
   public async loadCache(bootstrapPeers: string[]) {
-    await Promise.all(bootstrapPeers.map(async node => {
-      await this.add(node as `${string}:${number}`)
+    await Promise.all(bootstrapPeers.map(async hostname => {
+      log(`[PEERS] Connecting to bootstrap peer ${hostname}`)
+      await this.add(hostname as `${string}:${number}`)
     }))
     if (!(await cacheFile.exists())) return
     const hostnames: `${string}:${number}`[] = await cacheFile.json()
-    for (const hostname of hostnames) if (hostname && !bootstrapPeers.includes(hostname)) this.add(hostname)
+    for (const hostname of hostnames) if (hostname && !bootstrapPeers.includes(hostname)) {
+      log(`[PEERS] Connecting to cached peer ${hostname}`)
+      await this.add(hostname)
+    }
   } // TODO: time based confidence scores - older peers = more trustworthy
 
   public async requestAll<T extends Request['type']>(formulas: Config['formulas'], request: Request & { type: T }, confirmedHashes: Set<bigint>, installedPlugins: Set<string>): Promise<Map<bigint, SearchResult[T]>> {
@@ -191,14 +173,14 @@ export default class PeerManager {
     if (Array.isArray(auth)) return warn('DEVWARN:', `[PEERS] Failed to authenticate peer ${auth[1]}`)
     const identity = this.verifyPeer(authenticatedPeers.get(hostname)?.hostname ?? hostname, auth)
     if (!identity) return identity
-    // if (preferTransport === 'TCP') return new WebSocketClient(identity, this, this.node)
-    return fromOutbound(this.udpServer.socket, this, identity, this.rpcConfig, this.node) || false
+    if (preferTransport === 'TCP') return new WebSocketClient(identity, this, this.node)
+    return UDP_Client.connectToAuthenticatedPeer(this, identity, this.rpcConfig) || false
   }
 
   private verifyPeer(hostname: `${string}:${number}`, auth: Identity) {
-    if (hostname === `${this.node.hostname}:${this.node.port}` || hostname === `${this.node.ip}:${this.node.port}`) return warn('DEVWARN:', `[PEERS] Not connecting to self`)
+    if (hostname === `${this.node.hostname}:${this.node.port}` || hostname === `${this.node.ip}:${this.node.port}`) return warn('DEVWARN:', `[PEERS] Not connecting to self ${hostname}`)
     if (this.knownPeers.has(hostname) || this.has(auth.address)) return warn('DEVWARN:', `[PEERS] Already connected/connecting to peer ${auth.username} ${auth.address} ${auth.hostname}`)
-    if (auth.address === this.account.address) return warn('DEVWARN:', `[PEERS] Not connecting to self`)
+    if (auth.address === this.account.address) return warn('DEVWARN:', `[PEERS] Not connecting to self ${auth.address}`)
 
     if ('hostname' in auth) {
       if (auth.hostname === this.node.hostname) return false
