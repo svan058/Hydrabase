@@ -5,7 +5,7 @@ import type { Config, Socket } from '../../../types/hydrabase'
 import type { Account } from '../../Crypto/Account'
 import type PeerManager from '../../PeerManager'
 
-import { log, warn } from '../../../utils/log'
+import { debug, log, warn } from '../../../utils/log'
 import { type Identity, proveClient, proveServer, verifyClient, verifyServer } from '../../protocol/HIP1/handshake'
 import { DHT_Node } from '../dht'
 import { authenticatedPeers, type HandshakeRequest, type HandshakeResponse, type Query, UDP_Server, udpConnections } from './server'
@@ -17,19 +17,25 @@ export const authenticateServerUDP = (server: UDP_Server, hostname: `${string}:$
     const txnId = Buffer.alloc(4)
     txnId.writeUInt32BE(Math.floor(Math.random() * 0xFFFFFFFF))
     const t = txnId.toString('hex')
+    debug(`[UDP] [CLIENT] Auth attempt to ${hostname} with txnId=${t}`)
     const timer = setTimeout(() => {
       server.cancelAwaiter(t)
+      debug(`[UDP] [CLIENT] Auth timeout for ${hostname} txnId=${t} — no matching response received`)
       resolve([408, 'UDP auth timeout'])
     }, 10_000)
     server.awaitResponse(t, (msg) => {
+      debug(`[UDP] [CLIENT] Awaiter fired for txnId=${t}, msg.y=${msg.y}`)
       if (msg.y === 'e') {
+        debug(`[UDP] [CLIENT] Auth error from ${hostname}: ${msg.e[0]} ${msg.e[1]}`)
         clearTimeout(timer)
         resolve([msg.e[0], msg.e[1]])
         return true
       }
       if (msg.y !== 'h2') return false
+      debug(`[UDP] [CLIENT] Received h2 from ${hostname}, verifying...`)
       const verification = verifyServer(msg.h2, hostname)
       if (verification !== true) {
+        debug(`[UDP] [CLIENT] h2 verification failed for ${hostname}: ${JSON.stringify(verification)}`)
         clearTimeout(timer)
         resolve(verification)
         return true
@@ -42,6 +48,7 @@ export const authenticateServerUDP = (server: UDP_Server, hostname: `${string}:$
     })
     const [host, port] = hostname.split(':') as [string, `${number}`]
     server.socket.send(bencode.encode({ h1: proveClient(account, node, hostname), id: DHT_Node.getNodeId(node), t, y: 'h1' } satisfies HandshakeRequest), Number(port), host)
+    debug(`[UDP] [CLIENT] Sent h1 to ${host}:${port} txnId=${t}`)
   })
 }
 
@@ -61,8 +68,10 @@ export class UDP_Client implements Socket {
   }
   static readonly connectToAuthenticatedPeer = (peerManager: PeerManager, identity: Identity, config: Config['rpc'], nodeId: string): UDP_Client => new UDP_Client(peerManager, identity, config, nodeId)
   static readonly connectToUnauthenticatedPeer = async (peerManager: PeerManager, auth: HandshakeRequest, peerHostname: `${string}:${number}`, node: Config['node'], config: Config['rpc'], apiKey: string | undefined, socket: dgram.Socket): Promise<false | UDP_Client> => {
+    debug(`[UDP] [CLIENT] Sending h2 to ${peerHostname} txnId=${auth.t}`)
     socket.send(bencode.encode({ h2: proveServer(peerManager.account, node), t: auth.t, y: 'h2' } satisfies HandshakeResponse), Number(peerHostname.split(':')[1]), peerHostname.split(':')[0])
     const identity = await verifyClient(node, peerHostname, auth.h1, apiKey, () => [500, 'UDP hostname mismatch'] as [number, string])
+    debug(`[UDP] [CLIENT] verifyClient result for ${peerHostname}: ${Array.isArray(identity) ? identity.join(' ') : 'success ' + identity.username}`)
     if (Array.isArray(identity)) return warn('DEVWARN:', `[UDP] [CLIENT] UDP auth query verification failed for ${peerHostname}: ${identity[1]}`)
     log(`[UDP] [CLIENT] Authenticated peer ${identity.username} ${identity.address} at ${peerHostname} via UDP auth query`)
     authenticatedPeers.set(peerHostname, identity)
