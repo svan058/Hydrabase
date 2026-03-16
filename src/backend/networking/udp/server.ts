@@ -17,7 +17,7 @@ type ResponseAwaiter = (msg: Message, rinfo: { address: string, port: number }) 
 
 const decoder = new TextDecoder()
 const BinaryString = z.instanceof(Uint8Array).transform(m => decoder.decode(m))
-const BinaryHex = z.instanceof(Uint8Array).transform(m => `0x${m.toHex()}`)
+const BinaryHex = z.instanceof(Uint8Array).transform(m => m.toHex())
 
 const BaseMessage = z.object({
   t: BinaryHex,
