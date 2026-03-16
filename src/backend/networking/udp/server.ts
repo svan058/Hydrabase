@@ -5,7 +5,7 @@ import z from 'zod'
 import type { Config } from '../../../types/hydrabase'
 import type PeerManager from '../../PeerManager'
 
-import { error, log, warn } from '../../../utils/log'
+import { debug, error, log, warn } from '../../../utils/log'
 import { FSMap } from '../../FSMap'
 import { AuthSchema, type Identity, proveServer } from '../../protocol/HIP1/handshake'
 import { DHT_Node } from '../dht'
@@ -72,11 +72,13 @@ const messageHandler = async (socket: dgram.Socket, peerManager: PeerManager, qu
   const peerHostname = `${peer.host}:${peer.port}` as const
   if (query.y === 'e') return warn('DEVWARN:', `[UDP] [SERVER] Peer threw ${peerHostname} error - ${query.e[0]} ${query.e[1]}`) 
   if (query.y === 'h1') {
-    log('[UDP] [HANDSHAKE] Handshake initiated by peer', query)
-    return await UDP_Client.connectToUnauthenticatedPeer(peerManager, query, peerHostname, node, config, apiKey, socket) ? true : warn('DEVWARN:', '[UDP] [SERVER] Failed to validate UDP auth')
+    log(`[UDP] [HANDSHAKE] Received h1 from ${peerHostname} txnId=${query.t} address=${query.h1.address} hostname=${query.h1.hostname}`)
+    const result = await UDP_Client.connectToUnauthenticatedPeer(peerManager, query, peerHostname, node, config, apiKey, socket)
+    debug(`[UDP] [HANDSHAKE] h1 processing for ${peerHostname}: ${result ? 'success' : 'failed'}`)
+    return result ? true : warn('DEVWARN:', '[UDP] [SERVER] Failed to validate UDP auth')
   }
   if (query.y === 'h2') {
-    log('[UDP] [HANDSHAKE] Peer completed handshake', query)
+    warn('DEVWARN:', `[UDP] [HANDSHAKE] Received h2 from ${peerHostname} txnId=${query.t} but no awaiter matched — this means the txnId doesn't match any pending auth request`)
     return false
   }
   if (query.y === 'q') {
@@ -115,11 +117,18 @@ export class UDP_Server {
       const {data} = rpcMessageSchema.safeParse(bencode.decode(_msg))
       if (!data) return
 
+      debug(`[UDP] [SERVER] Received msg y=${data.y} t=${data.t} from ${peer.address}:${peer.port}`)
+
       const awaiter = this.responseAwaiters.get(data.t)
       if (awaiter) {
+        debug(`[UDP] [SERVER] Awaiter matched for txnId=${data.t}`)
         const done = awaiter(data, { address: peer.address, port: peer.port })
         if (done) this.responseAwaiters.delete(data.t)
         return
+      }
+
+      if (data.y === 'h2') {
+        debug(`[UDP] [SERVER] No awaiter for h2 txnId=${data.t}, registered awaiters: ${[...this.responseAwaiters.keys()].join(', ')}`)
       }
 
       await messageHandler(socket, peerManager(), data, { host: peer.address, port: peer.port }, node, config, apiKey)
