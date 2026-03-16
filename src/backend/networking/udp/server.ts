@@ -65,14 +65,23 @@ type Message = z.infer<typeof rpcMessageSchema>
 
 const messageHandler = async (socket: dgram.Socket, peerManager: PeerManager, query: Message, peer: { host: string, port: number }, node: Config['node'], config: Config['rpc'], apiKey: string | undefined): Promise<boolean> => {
   const peerHostname = `${peer.host}:${peer.port}` as const
-  if (query.y === 'e') return warn('DEVWARN:', `[UDP] [SERVER] Peer threw error - ${query.e[0]} ${query.e[1]}`) 
-  if (query.y === 'h1') return await UDP_Client.connectToUnauthenticatedPeer(peerManager, query, peerHostname, node, config, apiKey, socket) ? true : warn('DEVWARN:', '[UDP] [SERVER] Failed to validate UDP auth')
-  if (!authenticatedPeers.has(peerHostname)) {
-    warn('DEVWARN:', `[UDP] [SERVER] Received message from unauthenticated peer ${peerHostname}`)
-    socket.send(bencode.encode({ h1: proveServer(peerManager.account, node), t: query.t, y: 'h1' }), peer.port, peer.host)
+  if (query.y === 'e') return warn('DEVWARN:', `[UDP] [SERVER] Peer threw ${peerHostname} error - ${query.e[0]} ${query.e[1]}`) 
+  if (query.y === 'h1') {
+    console.log('Received h1', query)
+    return await UDP_Client.connectToUnauthenticatedPeer(peerManager, query, peerHostname, node, config, apiKey, socket) ? true : warn('DEVWARN:', '[UDP] [SERVER] Failed to validate UDP auth')
+  }
+  if (query.y === 'h2') {
+    console.log('Received h2', query)
     return false
   }
   if (query.y === 'q') {
+    if (!authenticatedPeers.has(peerHostname)) {
+      warn('DEVWARN:', `[UDP] [SERVER] Received message from unauthenticated peer ${peerHostname}`)
+      socket.send(bencode.encode({ h1: proveServer(peerManager.account, node), t: query.t, y: 'h1' }), peer.port, peer.host)
+      return false
+    }
+    if (!query.q.startsWith(config.prefix)) return false
+    console.log('Received query', query)
     const message = query.a['d']
     if (!message) return false
     const connection = udpConnections.get(peerHostname)
@@ -84,6 +93,7 @@ const messageHandler = async (socket: dgram.Socket, peerManager: PeerManager, qu
     connection.messageHandlers.forEach(handler => handler(message))
     return connection.messageHandlers.length === 0 ? warn('DEVWARN:', `[UDP] [SERVER] Couldn't find message handler ${peerHostname}`) : true
   }
+  if (query.y === 'r') return false
   log(`[UDP] [SERVER] Unhandled query`, {query})
   return false
 }
@@ -97,7 +107,6 @@ export class UDP_Server {
     socket.on('message', async (_msg, peer) => {
       const result = rpcMessageSchema.safeParse(bencode.decode(_msg))
       if (!result.success) return
-      if (result.data.y === 'h1' || result.data.y === 'h2' || (result.data.y === 'q' && result.data.q.startsWith(config.prefix)))
       await messageHandler(socket, peerManager(), result.data, { host: peer.address, port: peer.port }, node, config, apiKey)
     })
   }
